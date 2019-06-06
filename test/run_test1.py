@@ -26,7 +26,7 @@ sys.path.append('/home/remy/.local/share/QGIS/QGIS3/profiles/default/processing/
 #Processing.initialize()
 
 
-filename=os.path.join('/home/remy/Software/QGmesh/test','simple_test.qgz')
+filename=os.path.join('/home/remy/Software/QGmesh/test','simple_test2.qgz')
 print(filename)
 proj = QgsProject.instance()
 proj.read(filename)
@@ -41,11 +41,14 @@ crs=get_crs(projid)
 
     
 geo=GeoFile()
-layers = [tree_layer.layer() for tree_layer in proj.layerTreeRoot().findLayers()]
-for layer in layers:
-    if layer.name() in ['domain','channel']:
-        xform = QgsCoordinateTransform(layer.crs(), crs,proj)
-        geo.add_layer(layer,xform)
+for child in proj.layerTreeRoot().findGroups():      
+    import pdb;pdb.set_trace()  
+    if child.name() in ['Boundaries','Islands','Channels']:
+        for sub_subChild in child.children():
+            layer = proj.mapLayer(sub_subChild.layerId())
+            xform = QgsCoordinateTransform(layer.crs(), crs,proj)
+            self.geo.add_layer(layer,xform)
+            added.append(child.name())
 
 
 

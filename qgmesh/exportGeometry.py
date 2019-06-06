@@ -103,17 +103,17 @@ class GeoFile():
         holes=[]
         domain=[]
         channel=[]
-        print(self.physicals_ll)
+
         for physical in self.physicals_ll:
 
-            if physical.lower() in 'island' or physical.lower() in 'channel':
+            if physical == 'Islands' or physical == 'Channels':
                 for x in set(self.physicals_ll[physical]):
                     holes.append(self.ll[x])
             else:
                 domain=self.ll[self.physicals_ll[physical][0]]
 
 
-            if physical.lower() in 'channel':
+            if physical=='Channels':
                 for x in set(self.physicals_ll[physical]):
                     channel.append(self.ll[x])
                     sf=self.geo.add_plane_surface(self.ll[x])
@@ -124,7 +124,7 @@ class GeoFile():
         self.geo.add_plane_surface(domain,holes=holes)
 
 
-    def addLineFromCoords(self, pts, xform, lc, physical,trans=None,progression=1) :
+    def addLineFromCoords(self, pts, xform, lc, physical,group_name,trans=None,progression=1) :
         
         if xform :
             pts = [xform.transform(x) for x in pts]
@@ -138,7 +138,7 @@ class GeoFile():
 
         ids = [id0] + [self.writePoint(x, lc) for x in pts[1:-1]] + [id1]
 
-        if physical == 'channel' :
+        if group_name == 'Channels' :
             lids = [self.writeLine(ids)] 
             if trans:
                 self.geo.set_transfinite_lines([self.l[-1]], trans, progression=progression)
@@ -154,15 +154,20 @@ class GeoFile():
                 else :
                     self.physicals[physical] = [lid]
 
+   
+
 
         ll = lineloop(pts[0], pts[-1], id0, id1, lids)
         self.lineloops = [o for o in self.lineloops if not ll.merge(o)]
 
-        if physical :
-                if physical in self.physicals_ll :
-                    self.physicals_ll[physical].append(len(self.ll))
-                else :
-                    self.physicals_ll[physical] = [len(self.ll)]
+
+        if group_name in self.physicals_ll :
+            self.physicals_ll[group_name].append(len(self.ll))
+        else :
+            self.physicals_ll[group_name] = [len(self.ll)]
+
+
+            
 
         if ll.closed():
             
@@ -173,7 +178,7 @@ class GeoFile():
 
 
 
-    def add_layer(self,layer,xform):
+    def add_layer(self,layer,xform,group_name):
 
         name = layer.name()
         fields = layer.fields()
@@ -181,10 +186,12 @@ class GeoFile():
         mesh_size_idx = fields.indexFromName("mesh_size")
         physical_idx = fields.indexFromName("physical")
         trans_idx = fields.indexFromName("trans")
+        prog_idx = fields.indexFromName("prog")
         
         lc = None
         physical = None
         trans=None
+        prog=1
         L=[]
         for ie,feature in enumerate(layer.getFeatures()):
             geom = feature.geometry()
@@ -200,11 +207,14 @@ class GeoFile():
             if trans_idx >= 0 :
                 trans = feature[trans_idx]
 
+            if prog_idx >= 0 :
+                prog = feature[prog_idx]
+
             if geom.type() == QgsWkbTypes.PolygonGeometry :
 
                 for loop in geom.asMultiPolygon() :
                     for line in loop:
-                        self.addLineFromCoords(line, xform, lc, physical,trans)
+                        self.addLineFromCoords(line, xform, lc, physical,group_name,trans,prog)
 
             elif geom.type() == QgsWkbTypes.LineGeometry :
                 lines = geom.asMultiPolyline()
@@ -213,7 +223,7 @@ class GeoFile():
                 else :
                     for line in lines :
 
-                        self.addLineFromCoords(line, xform, lc, physical ,trans)
+                        self.addLineFromCoords(line, xform, lc, physical ,group_name,trans,prog)
 
 
             elif geom.type() == QgsWkbTypes.PointGeometry :

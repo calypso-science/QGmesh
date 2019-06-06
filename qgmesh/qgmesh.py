@@ -23,14 +23,16 @@
 """
 from PyQt5.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QAction
+from PyQt5.QtWidgets import QAction,QFileDialog
+
+from qgis.core import QgsProject,QgsLayerTreeGroup,Qgis,QgsCoordinateTransform
 
 # Initialize Qt resources from file resources.py
 from .resources import *
 # Import the code for the dialog
-from .exportgeo_dialog import ExportGeoDialog
 import os.path
 
+from .exportGeometry import GeoFile
 
 class qgmesh:
     """QGIS Plugin Implementation."""
@@ -165,12 +167,30 @@ class qgmesh:
         icon_path = ':/plugins/qgmesh/icon.png'
         self.add_action(
             icon_path,
-            text=self.tr(u'Export Geo file'),
-            callback=self.export_geo,
+            text=self.tr(u'Initialize folders...'),
+            callback=self.initialize_folders,
             parent=self.iface.mainWindow(),
-            status_tip="Generate a Gmsh geometry file (.geo).",
-            whats_this="Generate a Gmsh geometry file (.geo). Polygones, lines and multilines can be exported. The mesh size can be specified either by a \"mesh_size\" field on the featres or by a raster layer. The generated file can be meshed with Gmsh (http://geuz.org/gmsh).")
+            add_to_toolbar=False,
+            status_tip="Generate each folder needed by QGmsh.",
+            whats_this="Generate folders: \n Boundaries, Channel. Islands  \n which are needed to run QGmsh.")
 
+        self.add_action(
+            icon_path,
+            text=self.tr(u'Update geometry...'),
+            callback=self.update_geofile,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=True,
+            status_tip="Update the Geometry",
+            whats_this="This will update th geometry needed by gmsh.")
+
+        self.add_action(
+            icon_path,
+            text=self.tr(u'Export geometry...'),
+            callback=self.export_geofile,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            status_tip="Export the Geometry",
+            whats_this="This will export the geometry file for manual editing.")
 
         # will be set False in run()
         self.first_start = True
@@ -185,21 +205,86 @@ class qgmesh:
             self.iface.removeToolBarIcon(action)
 
 
-    def export_geo(self):
+    def initialize_folders(self):
         """Run method that performs all the real work"""
-
-        # Create the dialog with elements (after translation) and keep reference
-        # Only create GUI ONCE in callback, so that it will only load when the plugin is started
-        if self.first_start == True:
-            self.first_start = False
-            self.dlg = ExportGeoDialog()
-
-        # show the dialog
-        self.dlg.show()
-        # Run the dialog event loop
-        result = self.dlg.exec_()
         # See if OK was pressed
-        if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
-            pass
+        groups=['Boundaries','Channels','Islands','Sizing']
+        proj = QgsProject.instance()
+
+
+
+
+        childs=[]
+        for child in proj.layerTreeRoot().children():
+            if isinstance(child, QgsLayerTreeGroup):
+                childs.append(child.name())
+
+        exists_already=[]
+        for group in groups:
+            if group not in childs:
+                proj.layerTreeRoot().addGroup(group)
+            else:
+                exists_already.append(group)
+
+        if len(exists_already)>1:
+            self.iface.messageBar().pushMessage("Error", "layer(s): %s already exists" % ','.join(exists_already), level=Qgis.Warning)
+
+
+    def update_geofile(self):
+        proj = QgsProject.instance()
+        crs=proj.crs()
+        self.geo=GeoFile()
+        added=[]
+        for child in proj.layerTreeRoot().findGroups():        
+            if child.name() in ['Boundaries','Islands','Channels']:
+                for sub_subChild in child.children():
+                    layer = proj.mapLayer(sub_subChild.layerId())
+                    xform = QgsCoordinateTransform(layer.crs(), crs,proj)
+                    self.geo.add_layer(layer,xform,child.name())
+                    added.append(child.name())
+        
+        if len(added)>0:
+            self.iface.messageBar().pushMessage("Info", "layer(s): %s added to Geometry" % ','.join(added), level=Qgis.Info)
+
+        self.geo.writeSurface()
+
+        
+
+
+    def export_geofile(self):
+        self.update_geofile()
+        qfd = QFileDialog()
+        path = ""
+        fil = "geo(*.geo)"
+        fname = QFileDialog.getSaveFileName(qfd, 'exprt Geo file', path, fil)
+        fname=fname[0]
+        if fname=='':
+            return
+
+        if not fname.endswith('.geo'):
+            fname=fname+'.geo'
+
+        with open(fname, 'w') as f:
+            f.write(self.geo.geo.get_code() + '\n')
+
+        f.close()
+        self.iface.messageBar().pushMessage("Info", "%s exported " % fname, level=Qgis.Info)
+
+    # def initialize_folders(self):
+    #     """Run method that performs all the real work"""
+
+    #     # Create the dialog with elements (after translation) and keep reference
+    #     # Only create GUI ONCE in callback, so that it will only load when the plugin is started
+    #     if self.first_start == True:
+    #         self.first_start = False
+    #         self.dlg = ExportGeoDialog()
+
+    #     # show the dialog
+    #     self.dlg.show()
+    #     # Run the dialog event loop
+    #     result = self.dlg.exec_()
+    #     # See if OK was pressed
+    #     if result:
+    #         # Do something useful here - delete the line containing pass and
+    #         # substitute with your code.
+    #         pass
