@@ -167,7 +167,7 @@ class qgmesh:
         icon_path = ':/plugins/qgmesh/icon.png'
         self.add_action(
             icon_path,
-            text=self.tr(u'Initialize folders...'),
+            text=self.tr(u'Initialize folders'),
             callback=self.initialize_folders,
             parent=self.iface.mainWindow(),
             add_to_toolbar=False,
@@ -176,21 +176,30 @@ class qgmesh:
 
         self.add_action(
             icon_path,
-            text=self.tr(u'Update geometry...'),
+            text=self.tr(u'Update geometry'),
             callback=self.update_geofile,
             parent=self.iface.mainWindow(),
             add_to_toolbar=True,
             status_tip="Update the Geometry",
-            whats_this="This will update th geometry needed by gmsh.")
+            whats_this="This will update th geometry needed by GMSH.")
 
         self.add_action(
             icon_path,
-            text=self.tr(u'Export geometry...'),
+            text=self.tr(u'Export geometry'),
             callback=self.export_geofile,
             parent=self.iface.mainWindow(),
             add_to_toolbar=False,
             status_tip="Export the Geometry",
             whats_this="This will export the geometry file for manual editing.")
+
+        self.add_action(
+            icon_path,
+            text=self.tr(u'Mesh it'),
+            callback=self.mesh_geofile,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=True,
+            status_tip="Create the mesh",
+            whats_this="This will launch GMSH and create the mesh.")
 
         # will be set False in run()
         self.first_start = True
@@ -226,8 +235,8 @@ class qgmesh:
             else:
                 exists_already.append(group)
 
-        if len(exists_already)>1:
-            self.iface.messageBar().pushMessage("Error", "layer(s): %s already exists" % ','.join(exists_already), level=Qgis.Warning)
+        #if len(exists_already)>1:
+        #    self.iface.messageBar().pushMessage("Error", "layer(s): %s already exists" % ','.join(exists_already), level=Qgis.Warning)
 
 
     def update_geofile(self):
@@ -270,6 +279,8 @@ class qgmesh:
         f.close()
         self.iface.messageBar().pushMessage("Info", "%s exported " % fname, level=Qgis.Info)
 
+    def mesh_geofile(self):
+        pass
     # def initialize_folders(self):
     #     """Run method that performs all the real work"""
 
