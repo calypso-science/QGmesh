@@ -21,11 +21,11 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt5.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
+from PyQt5.QtCore import QSettings, QTranslator, qVersion, QCoreApplication,QVariant
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QAction,QFileDialog
 
-from qgis.core import QgsProject,QgsLayerTreeGroup,Qgis,QgsCoordinateTransform
+from qgis.core import QgsProject,QgsLayerTreeGroup,Qgis,QgsCoordinateTransform,QgsWkbTypes,QgsVectorLayer,QgsField
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -92,12 +92,15 @@ class qgmesh:
         icon_path,
         text,
         callback,
+        menu=None,
         enabled_flag=True,
         add_to_menu=True,
         add_to_toolbar=True,
         status_tip=None,
         whats_this=None,
         parent=None):
+
+
         """Add a toolbar icon to the toolbar.
 
         :param icon_path: Path to the icon for this action. Can be a resource
@@ -136,10 +139,14 @@ class qgmesh:
             added to self.actions list.
         :rtype: QAction
         """
+        if menu is None:
+            menu=self.menu
 
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
-        action.triggered.connect(callback)
+        if callback is not None:
+            action.triggered.connect(callback)
+
         action.setEnabled(enabled_flag)
 
         if status_tip is not None:
@@ -154,7 +161,7 @@ class qgmesh:
 
         if add_to_menu:
             self.iface.addPluginToMenu(
-                self.menu,
+                menu,
                 action)
 
         self.actions.append(action)
@@ -174,32 +181,66 @@ class qgmesh:
             status_tip="Generate each folder needed by QGmsh.",
             whats_this="Generate folders: \n Boundaries, Channel. Islands  \n which are needed to run QGmsh.")
 
+
+
+        ## Geometry menu
+        Geo_menu=self.add_action(
+            icon_path,
+            text=self.tr(u'Geometry'),
+            callback=None,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            status_tip="Update the Geometry",
+            whats_this="This will update th geometry needed by GMSH.")
+    # Call first_menu to add the action for the submenu
+
+
         self.add_action(
             icon_path,
             text=self.tr(u'Update geometry'),
             callback=self.update_geofile,
             parent=self.iface.mainWindow(),
             add_to_toolbar=True,
+            menu=Geo_menu,
             status_tip="Update the Geometry",
             whats_this="This will update th geometry needed by GMSH.")
 
-        self.add_action(
-            icon_path,
-            text=self.tr(u'Export geometry'),
-            callback=self.export_geofile,
-            parent=self.iface.mainWindow(),
-            add_to_toolbar=False,
-            status_tip="Export the Geometry",
-            whats_this="This will export the geometry file for manual editing.")
+        # self.add_action(
+        #     icon_path,
+        #     text=self.tr(u'Export geometry'),
+        #     callback=self.export_geofile,
+        #     parent=self.iface.mainWindow(),
+        #     add_to_toolbar=False,
+        #     status_tip="Export the Geometry",
+        #     whats_this="This will export the geometry file for manual editing.")
 
-        self.add_action(
-            icon_path,
-            text=self.tr(u'Mesh it'),
-            callback=self.mesh_geofile,
-            parent=self.iface.mainWindow(),
-            add_to_toolbar=True,
-            status_tip="Create the mesh",
-            whats_this="This will launch GMSH and create the mesh.")
+
+        # ## Mesh file
+
+        # self.add_action(
+        #     icon_path,
+        #     text=self.tr(u'Mesh it'),
+        #     callback=self.mesh_geofile,
+        #     parent=self.iface.mainWindow(),
+        #     add_to_toolbar=True,
+        #     status_tip="Create the mesh",
+        #     whats_this="This will launch GMSH and create the mesh.")
+
+
+        # ### Sizing
+
+
+
+
+        # self.add_action(
+        #     icon_path,
+        #     text=self.tr(u'add ball'),
+        #     callback=self.add_sizing_ball,
+        #     parent=self.iface.mainWindow(),
+        #     add_to_toolbar=True,
+        #     status_tip=".",
+        #     whats_this=".")
+
 
         # will be set False in run()
         self.first_start = True
@@ -213,7 +254,23 @@ class qgmesh:
                 action)
             self.iface.removeToolBarIcon(action)
 
+    def add_sizing_ball(self):
+        inLayerGeometryType = ['Point','Line','Polygon'][QgsWkbTypes.PointGeometry]
+        proj = QgsProject.instance()
+        crs=proj.crs()
+        outLayer = QgsVectorLayer( inLayerGeometryType+ '?crs='+crs.authid(), \
+            'Ball', \
+            'memory')
 
+        outLayer.startEditing()
+        outLayer.dataProvider().addAttributes([\
+            QgsField("vin", QVariant.Double,"double",10,4),\
+            QgsField("vout", QVariant.Double,"double",10,4),\
+            QgsField("radius", QVariant.Double,"double",10,4)])
+
+        outLayer.commitChanges()
+
+        proj.addMapLayer(outLayer)
     def initialize_folders(self):
         """Run method that performs all the real work"""
         # See if OK was pressed

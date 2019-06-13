@@ -229,8 +229,60 @@ class GeoFile():
             elif geom.type() == QgsWkbTypes.PointGeometry :
                  print ('asPoint()')
 
+    def addBall(self,pt,xform,
+         radius=None,
+         vin=None,
+         vout=None,
+         **kwargs):
+         
+        # Don't use [] as default argument, cf.
+        # <https://stackoverflow.com/a/113198/353337>
+
+        if xform :
+            pt = xform.transform(pt)
+
+        self.geo._FIELD_ID += 1
+        name = "field{}".format(self.geo._FIELD_ID)
+
+        self.geo._GMSH_CODE.append("{} = newf;".format(name))
+
+        self.geo._GMSH_CODE.append("Field[{}] = Ball;".format(name))
+
+        self.geo._GMSH_CODE.append("Field[{}].XCenter= {!r};".format(name, pt[0]))
+        self.geo._GMSH_CODE.append("Field[{}].YCenter= {!r};".format(name, pt[1]))
+        self.geo._GMSH_CODE.append("Field[{}].ZCenter= {!r};".format(name, 0))
+        self.geo._GMSH_CODE.append("Field[{}].Radius= {!r};".format(name, radius))
+
+        if vin:
+            self.geo._GMSH_CODE.append("Field[{}].VIn= {!r};".format(name, vin))
+        if vout:
+            self.geo._GMSH_CODE.append("Field[{}].VOut= {!r};".format(name, vout))
+
+        return name
+
+    def add_sizing(self,layer,xform,group_name):
+
+        name = layer.name()
+        fields = layer.fields()
+
+        
+
+        Field=[]
+        for ie,feature in enumerate(layer.getFeatures()):
+            geom = feature.geometry()
+            if geom is None :
+                continue
+            options={}
+            for opt in fields.names():
+                idx=fields.indexFromName(opt)
+                options[opt.lower()]=feature[idx]
 
 
+            if name.lower() == 'ball' :
+                point = geom.asPoint()
+                Field.append(self.addBall(point, xform,**options))
 
+
+        self.geo.add_background_field(Field,aggregation_type='Min')
 
         

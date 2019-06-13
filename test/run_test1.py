@@ -42,17 +42,24 @@ crs=get_crs(projid)
     
 geo=GeoFile()
 for child in proj.layerTreeRoot().findGroups():      
-    import pdb;pdb.set_trace()  
+
     if child.name() in ['Boundaries','Islands','Channels']:
         for sub_subChild in child.children():
             layer = proj.mapLayer(sub_subChild.layerId())
             xform = QgsCoordinateTransform(layer.crs(), crs,proj)
-            self.geo.add_layer(layer,xform)
-            added.append(child.name())
+            geo.add_layer(layer,xform,child.name())
+
 
 
 
 geo.writeSurface()
+
+for child in proj.layerTreeRoot().findGroups():      
+    if child.name() in ['Sizing']:
+    	for sub_subChild in child.children():
+    		layer = proj.mapLayer(sub_subChild.layerId())
+    		xform = QgsCoordinateTransform(layer.crs(), crs,proj)
+    		geo.add_sizing(layer,xform,child.name())
 
 
 with open('test.geo', 'w') as f:
