@@ -23,7 +23,7 @@
 """
 from PyQt5.QtCore import QSettings, QTranslator, qVersion, QCoreApplication,QVariant
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QAction,QFileDialog
+from PyQt5.QtWidgets import QAction,QFileDialog,QMenu
 
 from qgis.core import QgsProject,QgsLayerTreeGroup,Qgis,QgsCoordinateTransform,QgsWkbTypes,QgsVectorLayer,QgsField
 
@@ -170,77 +170,103 @@ class qgmesh:
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
+        self.menu = QMenu(self.iface.mainWindow())
+        self.menu.setObjectName("QGmesh")
+        self.menu.setTitle("QGmesh")
+
+        ## Initialize
 
         icon_path = ':/plugins/qgmesh/icon.png'
-        self.add_action(
+        init_fold=self.add_action(
             icon_path,
             text=self.tr(u'Initialize folders'),
             callback=self.initialize_folders,
             parent=self.iface.mainWindow(),
             add_to_toolbar=False,
+            add_to_menu=False,
             status_tip="Generate each folder needed by QGmsh.",
             whats_this="Generate folders: \n Boundaries, Channel. Islands  \n which are needed to run QGmsh.")
 
+        self.menu.addAction(init_fold)
 
+        ## Geometry
 
-        ## Geometry menu
-        Geo_menu=self.add_action(
-            icon_path,
-            text=self.tr(u'Geometry'),
-            callback=None,
-            parent=self.iface.mainWindow(),
-            add_to_toolbar=False,
-            status_tip="Update the Geometry",
-            whats_this="This will update th geometry needed by GMSH.")
-    # Call first_menu to add the action for the submenu
+        self.menu_geo = QMenu(self.iface.mainWindow())
+        self.menu_geo.setObjectName("Geometry")
+        self.menu_geo.setTitle("Geometry")
 
-
-        self.add_action(
+        update_geo=self.add_action(
             icon_path,
             text=self.tr(u'Update geometry'),
             callback=self.update_geofile,
             parent=self.iface.mainWindow(),
             add_to_toolbar=True,
-            menu=Geo_menu,
+            add_to_menu=False,
             status_tip="Update the Geometry",
             whats_this="This will update th geometry needed by GMSH.")
 
-        # self.add_action(
-        #     icon_path,
-        #     text=self.tr(u'Export geometry'),
-        #     callback=self.export_geofile,
-        #     parent=self.iface.mainWindow(),
-        #     add_to_toolbar=False,
-        #     status_tip="Export the Geometry",
-        #     whats_this="This will export the geometry file for manual editing.")
+        self.menu_geo.addAction(update_geo)
+        
+        export_geo=self.add_action(
+            icon_path,
+            text=self.tr(u'Export geometry'),
+            callback=self.export_geofile,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip="Export the Geometry",
+            whats_this="This will export the geometry file for manual editing.")
+
+        self.menu_geo.addAction(export_geo)
 
 
-        # ## Mesh file
+        self.menu.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.menu_geo)
 
-        # self.add_action(
-        #     icon_path,
-        #     text=self.tr(u'Mesh it'),
-        #     callback=self.mesh_geofile,
-        #     parent=self.iface.mainWindow(),
-        #     add_to_toolbar=True,
-        #     status_tip="Create the mesh",
-        #     whats_this="This will launch GMSH and create the mesh.")
+        ## Mesh file
+
+        self.menu_mesh = QMenu(self.iface.mainWindow())
+        self.menu_mesh.setObjectName("Meshing")
+        self.menu_mesh.setTitle("Meshing")
+
+        mesh_it=self.add_action(
+            icon_path,
+            text=self.tr(u'Mesh it'),
+            callback=self.mesh_geofile,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=True,
+            add_to_menu=False,
+            status_tip="Create the mesh",
+            whats_this="This will launch GMSH and create the mesh.")
+
+        self.menu_mesh.addAction(mesh_it)
 
 
-        # ### Sizing
+        self.menu.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.menu_mesh)
 
 
 
+        ## Sizing
+        self.menu_size= QMenu(self.iface.mainWindow())
+        self.menu_size.setObjectName("Sizing")
+        self.menu_size.setTitle("Sizing")
 
-        # self.add_action(
-        #     icon_path,
-        #     text=self.tr(u'add ball'),
-        #     callback=self.add_sizing_ball,
-        #     parent=self.iface.mainWindow(),
-        #     add_to_toolbar=True,
-        #     status_tip=".",
-        #     whats_this=".")
 
+        ball_field=self.add_action(
+            icon_path,
+            text=self.tr(u'add ball'),
+            callback=self.add_sizing_ball,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip=".",
+            whats_this=".")
+
+        self.menu_size.addAction(ball_field)
+
+        self.menu.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.menu_size)
+        
+        menuBar = self.iface.mainWindow().menuBar()
+        menuBar.insertMenu(self.iface.firstRightStandardMenu().menuAction(), self.menu)
 
         # will be set False in run()
         self.first_start = True
