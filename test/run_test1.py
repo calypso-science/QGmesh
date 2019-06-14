@@ -63,10 +63,13 @@ for child in proj.layerTreeRoot().findGroups():
     		geo.add_sizing(layer,xform,child.name())
 
 
-#gmsh=runGmsh.RunGmshDialog()
-import pygmsh
-mesh = pygmsh.generate_mesh(geo.geo)
-gmsh.exec_(geo)
+
+
+
+
+gmsh=runGmsh.RunGmshDialog()
+
+msh=gmsh.exec_(geo)
 
 
 

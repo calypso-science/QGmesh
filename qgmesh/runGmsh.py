@@ -1,15 +1,22 @@
 # author  : Jonathan Lambrechts jonathan.lambrechts@uclouvain.be
 # licence : GPLv2 (see LICENSE.md)
 
-from PyQt5.QtCore import Qt,QSettings,QProcess,QProcessEnvironment
-from PyQt5.QtGui import QDoubleValidator
+from PyQt5.QtCore import Qt,QSettings,QProcess,QProcessEnvironment,pyqtSignal,QObject
+from PyQt5.QtGui import QDoubleValidator,QTextCursor
 from PyQt5 import QtWidgets
 from qgis.core import QgsProject
 import shlex
-import os
+import os,sys
+import pygmsh
 
+class EmittingStream(QObject):
 
+    textWritten = pyqtSignal(str)
 
+    def write(self, text):
+        self.textWritten.emit(str(text))
+    def flush(self):
+        pass
 class RunGmshDialog(QtWidgets.QDialog) :
 
     def __init__(self) :
@@ -31,9 +38,13 @@ class RunGmshDialog(QtWidgets.QDialog) :
         hlayout.addWidget(self.killBtn)
         self.resize(600, 600)
         self.setLayout(layout)
+        sys.stdout = EmittingStream(textWritten=self.normalOutputWritten)
+        self.killed = False
+    def __del__(self):
+    # Restore sys.stdout
+        sys.stdout = sys.__stdout__
 
     def killp(self) :
-        self.p.kill()
         self.closeBtn.show()
         self.log("Killed", "red")
         self.killed = True
@@ -68,41 +79,41 @@ class RunGmshDialog(QtWidgets.QDialog) :
                 self.log("An error occured.", "red")
             else :
                 self.log("Gmsh finished.", "green")
-                self.loadMshBtn.show()
+
         self.closeBtn.show()
         self.closeBtn.setFocus()
         self.killBtn.hide()
 
-    def onError(self, state):
-        if self.killed :
-            return
-        if state == QProcess.FailedToStart :
-            self.log("Cannot start gmsh executable : " + self.args[0], "red")
-        elif state == QProcess.Crashed :
-            self.log("Gmsh crashed.", "red")
-        else :
-            self.log("Unkown gmsh error.", "red")
 
-    def exec_(self, geofile) :
-        self.p = QProcess()
-        self.p.setProcessChannelMode(QProcess.MergedChannels)
-        self.p.readyReadStandardOutput.connect(self.onStdOut)
-        self.p.error.connect(self.onError)
-        self.p.finished.connect(self.onFinished)
-        self.textWidget.clear()
-        self.args = args
+
+    def normalOutputWritten(self, text):
+        """Append text to the QTextEdit."""
+        # Maybe QTextEdit.append() works as well, but this is how I do it:
+        cursor = self.textWidget.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        cursor.insertText(text)
+        self.textWidget.setTextCursor(cursor)
+        self.textWidget.ensureCursorVisible()
+
+    def exec_(self, geo) :
         self.closeBtn.hide()
-        self.killed = False
         self.killBtn.show()
         self.killBtn.setFocus()
+
         self.show()
-        env = QProcessEnvironment.systemEnvironment()
-        env.remove("TERM")
-        self.p.setProcessEnvironment(env)
-        import pygmsh
-		mesh = pygmsh.generate_mesh(geo.geo)
-        self.p.start(args[0], args[1:])
+        self.textWidget.clear()
+        cursor = self.textWidget.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        msh=pygmsh.generate_mesh(geo.geo)
+        try:
+            msh=pygmsh.generate_mesh(geo.geo)
+            state=0
+        except :
+            state=1
+
+        self.onFinished(state)
+        self.textWidget.setTextCursor(cursor)
+        self.textWidget.ensureCursorVisible()
+
         super(RunGmshDialog, self).exec_()
-
-
-
+        return msh
