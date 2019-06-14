@@ -395,5 +395,4 @@ class qgmesh:
 
     def mesh_geofile(self):
         gmsh=RunGmshDialog()
-        gmsh.exec_(['gmsh test.geo'])
-        
+        gmsh.exec_(self.geo)
