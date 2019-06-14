@@ -260,6 +260,34 @@ class GeoFile():
 
         return name
 
+    def addBox(self,xmin,xmax,ymin,ymax,
+         vin=None,
+         vout=None,
+         **kwargs):
+         
+        # Don't use [] as default argument, cf.
+        # <https://stackoverflow.com/a/113198/353337>
+
+
+        self.geo._FIELD_ID += 1
+        name = "field{}".format(self.geo._FIELD_ID)
+
+        self.geo._GMSH_CODE.append("{} = newf;".format(name))
+
+        self.geo._GMSH_CODE.append("Field[{}] = Box;".format(name))
+
+        self.geo._GMSH_CODE.append("Field[{}].XMin= {!r};".format(name, xmin))
+        self.geo._GMSH_CODE.append("Field[{}].XMax= {!r};".format(name, xmax))
+        self.geo._GMSH_CODE.append("Field[{}].YMin= {!r};".format(name, ymin))
+        self.geo._GMSH_CODE.append("Field[{}].YMax= {!r};".format(name, ymax))
+
+        if vin:
+            self.geo._GMSH_CODE.append("Field[{}].VIn= {!r};".format(name, vin))
+        if vout:
+            self.geo._GMSH_CODE.append("Field[{}].VOut= {!r};".format(name, vout))
+
+        return name
+
     def add_sizing(self,layer,xform,group_name):
 
         name = layer.name()
@@ -282,6 +310,23 @@ class GeoFile():
                 point = geom.asPoint()
                 Field.append(self.addBall(point, xform,**options))
 
+
+            if name.lower() == 'box' :
+                xmin=float('inf')
+                xmax=float('inf')*-1
+                ymin=float('inf')
+                ymax=float('inf')*-1
+                lines = geom.asMultiPolyline()
+                for line in lines:
+                    if xform :
+                        line = [xform.transform(x) for x in line]
+                    for pt in line:
+                        xmin=min(xmin,pt[0])
+                        xmax=max(xmax,pt[0])
+                        ymin=min(xmin,pt[1])
+                        ymax=max(ymax,pt[1])
+
+                Field.append(self.addBox(xmin,xmax,ymin,ymax,**options))
 
         self.geo.add_background_field(Field,aggregation_type='Min')
 

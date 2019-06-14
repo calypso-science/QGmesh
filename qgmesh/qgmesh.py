@@ -33,6 +33,7 @@ from .resources import *
 import os.path
 
 from .exportGeometry import GeoFile
+from .runGmsh import *
 
 class qgmesh:
     """QGIS Plugin Implementation."""
@@ -263,6 +264,18 @@ class qgmesh:
 
         self.menu_size.addAction(ball_field)
 
+        box_field=self.add_action(
+            icon_path,
+            text=self.tr(u'add box'),
+            callback=self.add_sizing_box,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip=".",
+            whats_this=".")
+
+        self.menu_size.addAction(box_field)
+
         self.menu.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.menu_size)
         
         menuBar = self.iface.mainWindow().menuBar()
@@ -297,6 +310,24 @@ class qgmesh:
         outLayer.commitChanges()
 
         proj.addMapLayer(outLayer)
+
+    def add_sizing_box(self):
+        inLayerGeometryType = ['Point','Line','Polygon'][QgsWkbTypes.PolygonGeometry]
+        proj = QgsProject.instance()
+        crs=proj.crs()
+        outLayer = QgsVectorLayer( inLayerGeometryType+ '?crs='+crs.authid(), \
+            'Box', \
+            'memory')
+
+        outLayer.startEditing()
+        outLayer.dataProvider().addAttributes([\
+            QgsField("vin", QVariant.Double,"double",10,4),\
+            QgsField("vout", QVariant.Double,"double",10,4)])
+
+        outLayer.commitChanges()
+
+        proj.addMapLayer(outLayer)
+
     def initialize_folders(self):
         """Run method that performs all the real work"""
         # See if OK was pressed
@@ -363,22 +394,6 @@ class qgmesh:
         self.iface.messageBar().pushMessage("Info", "%s exported " % fname, level=Qgis.Info)
 
     def mesh_geofile(self):
-        pass
-    # def initialize_folders(self):
-    #     """Run method that performs all the real work"""
-
-    #     # Create the dialog with elements (after translation) and keep reference
-    #     # Only create GUI ONCE in callback, so that it will only load when the plugin is started
-    #     if self.first_start == True:
-    #         self.first_start = False
-    #         self.dlg = ExportGeoDialog()
-
-    #     # show the dialog
-    #     self.dlg.show()
-    #     # Run the dialog event loop
-    #     result = self.dlg.exec_()
-    #     # See if OK was pressed
-    #     if result:
-    #         # Do something useful here - delete the line containing pass and
-    #         # substitute with your code.
-    #         pass
+        gmsh=RunGmshDialog()
+        gmsh.exec_(['gmsh test.geo'])
+        

@@ -12,6 +12,7 @@ from qgis.core import (
 
 from exportGeometry import GeoFile
 from utils import get_crs
+import runGmsh
 
 # See https://gis.stackexchange.com/a/155852/4972 for details about the prefix 
 QgsApplication.setPrefixPath('/usr', True)
@@ -62,7 +63,10 @@ for child in proj.layerTreeRoot().findGroups():
     		geo.add_sizing(layer,xform,child.name())
 
 
-with open('test.geo', 'w') as f:
-    f.write(geo.geo.get_code() + '\n')
+#gmsh=runGmsh.RunGmshDialog()
+import pygmsh
+mesh = pygmsh.generate_mesh(geo.geo)
+gmsh.exec_(geo)
 
-f.close()
+
+
