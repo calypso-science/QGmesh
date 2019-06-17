@@ -1,5 +1,6 @@
 import numpy as np
-from qgis.core import QgsMeshLayer,QgsProject
+from qgis.core import QgsMeshLayer,QgsProject,QgsField
+from PyQt5.QtCore import QVariant,Qstring
 
 class Mesh(object) :
 
@@ -37,23 +38,26 @@ class Mesh(object) :
         stri=''
         for pt in range(0,len(self.nodes)):
             stri+='%.5f, %.5f \n' % (self.x[pt],self.y[pt])
-        stri+="---"
+        stri+="---\n"
         for face in range(0,len(self.triangles)):
             if self.triangles[face,-1]<0:
                 stri+='%.f, %.f, %.f \n' % (self.triangles[face,0],self.triangles[face,1],self.triangles[face,2])
             else:
                 stri+='%.f, %.f, %.f, %.f \n' % (self.triangles[face,0],self.triangles[face,1],self.triangles[face,2],self.triangles[face,3])
 
+
         self.stri=stri
     def to_shapefile(self,shape_name):
         proj = QgsProject.instance()
         crs=proj.crs()
         self._build_string()
-        outLayer = QgsMeshLayer( self.stri, \
+        outLayer = QgsMeshLayer( Qstring(self.stri), \
             shape_name, \
             "memory_mesh")
 
-
+        # outLayer.startEditing()
+        # outLayer.dataProvider().addAttributes( [ QgsField("Name", QVariant.String) ] )
+        # outLayer.commitChanges()
         proj.addMapLayer(outLayer)
 
     def writeUnstructuredGridSMS(self, mesh):
