@@ -7,12 +7,16 @@ from qgis.core import (
      QgsProcessingFeedback, 
      QgsVectorLayer,
      QgsProject,
-     QgsCoordinateTransform
+     QgsCoordinateTransform,
+     QgsMeshLayer,
 )
 
 from exportGeometry import GeoFile
 from utils import get_crs
 import runGmsh
+from mesh import Mesh
+import meshio
+import pygmsh
 
 # See https://gis.stackexchange.com/a/155852/4972 for details about the prefix 
 QgsApplication.setPrefixPath('/usr', True)
@@ -31,6 +35,9 @@ filename=os.path.join('/home/remy/Software/QGmesh/test','simple_test2.qgz')
 print(filename)
 proj = QgsProject.instance()
 proj.read(filename)
+
+
+
 
 ignoredLayers = set(proj.readEntry("qgmsh", "ignored_boundary_layers", "")[0].split("%%"))
 tetraLayers = set(proj.readEntry("qgmsh", "tetralayers", "")[0].split("%%"))
@@ -67,9 +74,29 @@ for child in proj.layerTreeRoot().findGroups():
 
 
 
-gmsh=runGmsh.RunGmshDialog()
 
-msh=gmsh.exec_(geo)
+# main=runGmsh.RunGmshDialog(geo)
+# main.show()
+
+# myStream=runGmsh.EmittingStream()
+# myStream.textWritten.connect(main.normalOutputWritten)
+
+# sys.stdout = myStream
+
+# msh=main.exec_()
+msh=pygmsh.generate_mesh(geo.geo)
+
+mesh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cell_data=msh.cell_data,field_data=msh.field_data)
+
+mesh=Mesh(mesh)
+
+stri=mesh._build_string()
+
+
+outLayer = QgsMeshLayer( mesh.stri, 'shape_name',"memory_mesh")
+import pdb;pdb.set_trace()
+proj.addMapLayer(outLayer)
+
 
 
 
