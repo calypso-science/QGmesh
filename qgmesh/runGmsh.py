@@ -13,14 +13,17 @@ class EmittingStream(QObject):
 
     textWritten = pyqtSignal(str)
 
+    def __init__(self,parent=None):
+        super(EmittingStream, self).__init__(parent)
+
     def write(self, text):
         self.textWritten.emit(str(text))
     def flush(self):
         pass
 class RunGmshDialog(QtWidgets.QDialog) :
 
-    def __init__(self) :
-        super(RunGmshDialog, self).__init__()
+    def __init__(self,geo,parent=None) :
+        super(RunGmshDialog, self).__init__(parent)
         self.setWindowTitle("Running Gmsh")
         layout = QtWidgets.QVBoxLayout()
         self.textWidget = QtWidgets.QPlainTextEdit()
@@ -29,16 +32,25 @@ class RunGmshDialog(QtWidgets.QDialog) :
         hlayout = QtWidgets.QHBoxLayout()
         layout.addLayout(hlayout)
         hlayout.addStretch(1)
+        self.runBtn = QtWidgets.QPushButton("Run")
+        hlayout.addWidget(self.runBtn)
+        self.runBtn.clicked.connect(self.meshit)
         self.closeBtn = QtWidgets.QPushButton("Close")
         hlayout.addWidget(self.closeBtn)
         self.closeBtn.show()
         self.closeBtn.clicked.connect(self.close)
         self.killBtn = QtWidgets.QPushButton("Kill")
         self.killBtn.clicked.connect(self.killp)
+        self.geo=geo.geo
+        self.msh=None
+
+
+
+
         hlayout.addWidget(self.killBtn)
         self.resize(600, 600)
         self.setLayout(layout)
-        sys.stdout = EmittingStream(textWritten=self.normalOutputWritten)
+        #sys.stdout = EmittingStream(textWritten=self.normalOutputWritten)
         self.killed = False
     def __del__(self):
     # Restore sys.stdout
@@ -95,25 +107,42 @@ class RunGmshDialog(QtWidgets.QDialog) :
         self.textWidget.setTextCursor(cursor)
         self.textWidget.ensureCursorVisible()
 
-    def exec_(self, geo) :
+    def meshit(self):
+        self.log('Creating the mesh...',"green")
+        try:
+            self.msh=pygmsh.generate_mesh(self.geo)
+            self.closeBtn.show()
+            self.onFinished(0)
+            self.runBtn.hide()
+
+        except:
+            self.onFinished(1)
+
+        sys.stdout = sys.__stdout__
+
+
+
+
+
+    def exec_(self) :
+        
+
         self.closeBtn.hide()
         self.killBtn.show()
         self.killBtn.setFocus()
 
-        self.show()
+        
         self.textWidget.clear()
         cursor = self.textWidget.textCursor()
         cursor.movePosition(QTextCursor.End)
-        msh=pygmsh.generate_mesh(geo.geo)
-        try:
-            msh=pygmsh.generate_mesh(geo.geo)
-            state=0
-        except :
-            state=1
+        self.show()
 
-        self.onFinished(state)
-        self.textWidget.setTextCursor(cursor)
-        self.textWidget.ensureCursorVisible()
+
+
 
         super(RunGmshDialog, self).exec_()
-        return msh
+        return self.msh
+
+
+        
+        

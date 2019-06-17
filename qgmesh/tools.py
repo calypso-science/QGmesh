@@ -73,3 +73,6 @@ class CancelRunLayout(QHBoxLayout) :
 
     def setFocus(self) :
         self.runButton.setFocus()
+
+
+

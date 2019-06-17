@@ -34,6 +34,9 @@ import os.path
 
 from .exportGeometry import GeoFile
 from .runGmsh import *
+import meshio
+
+from .mesh import Mesh
 
 class qgmesh:
     """QGIS Plugin Implementation."""
@@ -241,6 +244,18 @@ class qgmesh:
 
         self.menu_mesh.addAction(mesh_it)
 
+        export_msh=self.add_action(
+            icon_path,
+            text=self.tr(u'Export geometry'),
+            callback=self.export_mesh,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip="Export the Mesh",
+            whats_this="This will export the Mesh file for manual editing.")
+
+        self.menu_mesh.addAction(export_msh)
+
 
         self.menu.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.menu_mesh)
 
@@ -393,6 +408,43 @@ class qgmesh:
         f.close()
         self.iface.messageBar().pushMessage("Info", "%s exported " % fname, level=Qgis.Info)
 
+    def export_mesh(self):
+        qfd = QFileDialog()
+        path = ""
+
+        filetype=meshio.helpers.output_filetypes
+        fileext=meshio.helpers._extension_to_filetype
+        fileext = dict(map(reversed, fileext.items()))
+        fil=''
+        for typ in filetype:
+            if typ in fileext:
+                fil+=typ.upper()+' (*.'+fileext[typ]+');;'
+
+
+        fname = QFileDialog.getSaveFileName(qfd, 'exprt Mesh file', path, fil)
+        fname=fname[0]
+        if fname=='':
+            return
+
+        # if not fname.endswith('.msh'):
+        #     fname=fname+'.msh'
+
+        meshio.write(fname,self.mesh)
+
+        self.iface.messageBar().pushMessage("Info", "%s exported " % fname, level=Qgis.Info)
+
     def mesh_geofile(self):
-        gmsh=RunGmshDialog()
-        gmsh.exec_(self.geo)
+
+
+        main=RunGmshDialog(self.geo)
+        main.show()
+
+        myStream=EmittingStream()
+        myStream.textWritten.connect(main.normalOutputWritten)
+
+        sys.stdout = myStream
+
+        msh=main.exec_()
+        msh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cell_data=msh.cell_data,field_data=msh.field_data)
+        self.mesh=Mesh(msh)
+        self.mesh.to_shapefile('new_grid')
