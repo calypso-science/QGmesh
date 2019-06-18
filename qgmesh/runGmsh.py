@@ -109,6 +109,9 @@ class RunGmshDialog(QtWidgets.QDialog) :
 
     def meshit(self):
         self.log('Creating the mesh...',"green")
+        cursor = self.textWidget.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        self.show()
         try:
             self.msh=pygmsh.generate_mesh(self.geo)
             self.closeBtn.show()

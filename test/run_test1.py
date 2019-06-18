@@ -91,10 +91,12 @@ mesh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cel
 mesh=Mesh(mesh)
 
 stri=mesh._build_string()
+#mesh.writeUnstructuredGridSMS('temp.sms')
 
 
-outLayer = QgsMeshLayer( mesh.stri, 'shape_name',"memory_mesh")
-import pdb;pdb.set_trace()
+
+outLayer = QgsMeshLayer( mesh.stri, 'shape_name',"mesh_memory")
+
 proj.addMapLayer(outLayer)
 
 
