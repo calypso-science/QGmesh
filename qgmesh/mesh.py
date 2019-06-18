@@ -1,6 +1,6 @@
 import numpy as np
-from qgis.core import QgsMeshLayer,QgsProject,QgsField
-from PyQt5.QtCore import QVariant,Qstring
+from qgis.core import QgsMeshLayer,QgsProject,QgsField,QgsLayerTreeGroup
+
 
 class Mesh(object) :
 
@@ -48,17 +48,40 @@ class Mesh(object) :
 
         self.stri=stri
     def to_shapefile(self,shape_name):
+
+
+        group='Mesh'
+        proj = QgsProject.instance()
+
+        childs=[]
+        for child in proj.layerTreeRoot().children():
+            if isinstance(child, QgsLayerTreeGroup):
+                childs.append(child.name())
+
+
+        if group not in childs:
+            G=proj.layerTreeRoot().addGroup(group)
+        else:
+            G=proj.layerTreeRoot().findGroup(group)
+
+
+
         proj = QgsProject.instance()
         crs=proj.crs()
         self._build_string()
-        outLayer = QgsMeshLayer( Qstring(self.stri), \
+        outLayer = QgsMeshLayer( self.stri, \
             shape_name, \
-            "memory_mesh")
+            "mesh_memory")
 
-        # outLayer.startEditing()
-        # outLayer.dataProvider().addAttributes( [ QgsField("Name", QVariant.String) ] )
-        # outLayer.commitChanges()
         proj.addMapLayer(outLayer)
+
+        root = QgsProject.instance().layerTreeRoot()
+        layer = root.findLayer(outLayer.id())
+        clone = layer.clone()
+        G.insertChildNode(0, clone)
+        root.removeChildNode(layer)
+
+
 
     def writeUnstructuredGridSMS(self, mesh):
         """
