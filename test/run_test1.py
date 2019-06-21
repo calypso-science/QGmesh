@@ -52,10 +52,11 @@ geo=GeoFile()
 for child in proj.layerTreeRoot().findGroups():      
 
     if child.name() in ['Boundaries','Islands','Channels']:
+    	grid_type=child.CustomProperty['grid type']
         for sub_subChild in child.children():
             layer = proj.mapLayer(sub_subChild.layerId())
             xform = QgsCoordinateTransform(layer.crs(), crs,proj)
-            geo.add_layer(layer,xform,child.name())
+            geo.add_layer(layer,xform,child.name(),grid_type)
 
 
 

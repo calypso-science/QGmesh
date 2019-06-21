@@ -4,6 +4,7 @@ from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt,pyqtRemoveInputHook,QFileInfo
 import pygmsh
 import os
+from .tools import writeRasterLayer
 
 
 def samepoint(a, b) :
@@ -288,6 +289,28 @@ class GeoFile():
 
         return name
 
+    def addStructured(self,fname,
+         vout=None,
+         **kwargs):
+         
+        # Don't use [] as default argument, cf.
+        # <https://stackoverflow.com/a/113198/353337>
+
+
+        self.geo._FIELD_ID += 1
+        name = "field{}".format(self.geo._FIELD_ID)
+
+        self.geo._GMSH_CODE.append("{} = newf;".format(name))
+
+        self.geo._GMSH_CODE.append("Field[{}] = Structured;".format(name))
+
+        self.geo._GMSH_CODE.append("Field[{}].FileName= {!r};".format(name, fname))
+
+        if vout:
+            self.geo._GMSH_CODE.append("Field[{}].VOut= {!r};".format(name, vout))
+
+        return name
+
     def add_sizing(self,layer,xform,group_name):
 
         name = layer.name()
@@ -305,6 +328,10 @@ class GeoFile():
                 idx=fields.indexFromName(opt)
                 options[opt.lower()]=feature[idx]
 
+            if name.lower() == 'structured' :
+                point = geom.asMultiPoint()
+                fname=writeRasterLayer(layer,fname)
+                Field.append(self.addStructured( fname,**options))
 
             if name.lower() == 'ball' :
                 point = geom.asPoint()
@@ -327,6 +354,9 @@ class GeoFile():
                         ymax=max(ymax,pt[1])
 
                 Field.append(self.addBox(xmin,xmax,ymin,ymax,**options))
+
+
+
 
         self.geo.add_background_field(Field,aggregation_type='Min')
 

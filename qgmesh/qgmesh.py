@@ -23,7 +23,7 @@
 """
 from PyQt5.QtCore import QSettings, QTranslator, qVersion, QCoreApplication,QVariant
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QAction,QFileDialog,QMenu
+from PyQt5.QtWidgets import QAction,QFileDialog,QMenu,QApplication
 
 from qgis.core import QgsProject,QgsLayerTreeGroup,Qgis,QgsCoordinateTransform,QgsWkbTypes,QgsVectorLayer,QgsField
 
@@ -37,6 +37,7 @@ from .runGmsh import *
 import meshio
 
 from .mesh import Mesh
+from .tools import raster_calculator
 
 class qgmesh:
     """QGIS Plugin Implementation."""
@@ -173,25 +174,44 @@ class qgmesh:
         return action
 
     def initGui(self):
+        icon_path = ':/plugins/qgmesh/icon.png'
+
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
         self.menu = QMenu(self.iface.mainWindow())
         self.menu.setObjectName("QGmesh")
         self.menu.setTitle("QGmesh")
 
         ## Initialize
+        self.menu_init = QMenu(self.iface.mainWindow())
+        self.menu_init.setObjectName("Initializing")
+        self.menu_init.setTitle("Initializing")
 
-        icon_path = ':/plugins/qgmesh/icon.png'
-        init_fold=self.add_action(
+
+        init_fold_tetra=self.add_action(
             icon_path,
-            text=self.tr(u'Initialize folders'),
-            callback=self.initialize_folders,
+            text=self.tr(u'Finite elements'),
+            callback=self.initialize_folders_tetra,
             parent=self.iface.mainWindow(),
             add_to_toolbar=False,
             add_to_menu=False,
             status_tip="Generate each folder needed by QGmsh.",
             whats_this="Generate folders: \n Boundaries, Channel. Islands  \n which are needed to run QGmsh.")
 
-        self.menu.addAction(init_fold)
+        self.menu_init.addAction(init_fold_tetra)
+
+        init_fold_quad=self.add_action(
+            icon_path,
+            text=self.tr(u'Quad elements'),
+            callback=self.initialize_folders_quad,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip="Generate each folder needed by QGmsh.",
+            whats_this="Generate folders: \n Boundaries, Channel. Islands  \n which are needed to run QGmsh.")
+
+        self.menu_init.addAction(init_fold_quad)
+
+        self.menu.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.menu_init)
 
         ## Geometry
 
@@ -291,6 +311,23 @@ class qgmesh:
 
         self.menu_size.addAction(box_field)
 
+        self.raster_calc= QMenu(self.menu_size)
+        self.raster_calc.setObjectName("Raster calculator")
+        self.raster_calc.setTitle("Raster calculator")
+
+        to_wavelength=self.add_action(
+            icon_path,
+            text=self.tr(u'convert to wavelength'),
+            callback=self.to_wavelength,
+            parent=self.menu_size,
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip=".",
+            whats_this=".")
+
+        self.raster_calc.addAction(to_wavelength)
+        self.menu_size.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.raster_calc)
+
         self.menu.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.menu_size)
         
         menuBar = self.iface.mainWindow().menuBar()
@@ -343,7 +380,7 @@ class qgmesh:
 
         proj.addMapLayer(outLayer)
 
-    def initialize_folders(self):
+    def initialize_folders_tetra(self):
         """Run method that performs all the real work"""
         # See if OK was pressed
         groups=['Boundaries','Channels','Islands','Sizing']
@@ -360,7 +397,33 @@ class qgmesh:
         exists_already=[]
         for group in groups:
             if group not in childs:
-                proj.layerTreeRoot().addGroup(group)
+                
+                gr=proj.layerTreeRoot().addGroup(group)
+                gr.setCustomProperty('grid type','tetra')
+            else:
+                exists_already.append(group)
+
+        #if len(exists_already)>1:
+        #    self.iface.messageBar().pushMessage("Error", "layer(s): %s already exists" % ','.join(exists_already), level=Qgis.Warning)
+    def initialize_folders_quad(self):
+        """Run method that performs all the real work"""
+        # See if OK was pressed
+        groups=['Boundaries','Islands','Sizing']
+        proj = QgsProject.instance()
+
+
+
+
+        childs=[]
+        for child in proj.layerTreeRoot().children():
+            if isinstance(child, QgsLayerTreeGroup):
+                childs.append(child.name())
+
+        exists_already=[]
+        for group in groups:
+            if group not in childs:
+                gr=proj.layerTreeRoot().addGroup(group)
+                gr.setCustomProperty('grid type','quad')
             else:
                 exists_already.append(group)
 
@@ -448,3 +511,18 @@ class qgmesh:
         msh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cell_data=msh.cell_data,field_data=msh.field_data)
         self.mesh=Mesh(msh)
         self.mesh.to_shapefile('new_grid')
+
+
+    def to_wavelength(self):
+        proj = QgsProject.instance()
+        raster=[]
+        for child in proj.layerTreeRoot().findGroups():        
+            if child.name() in ['Sizing']:
+                for sub_subChild in child.children():
+                    raster.append(sub_subChild.name())
+
+        app = QAction("",self.iface.mainWindow())
+        ex = raster_calculator(raster,'wavelength')
+        sys.exit(ex.exec_())
+
+        
