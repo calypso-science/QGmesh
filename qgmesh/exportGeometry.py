@@ -64,6 +64,7 @@ class GeoFile():
         self.surf=[]
         self.physicals_ll={}
         self.channel_border=[]
+        self.Field=[]
 
     def writePoint(self, pt, lc) :
         if lc is not None :
@@ -99,7 +100,7 @@ class GeoFile():
         self.ill += 1
         return self.ill - 1
 
-    def writeSurface(self) :
+    def writeSurface(self,grid_type) :
 
         holes=[]
         domain=[]
@@ -114,7 +115,7 @@ class GeoFile():
                 domain=self.ll[self.physicals_ll[physical][0]]
 
 
-            if physical=='Channels':
+            if physical=='Channels' and grid_type is not 'quad':
                 for x in set(self.physicals_ll[physical]):
                     channel.append(self.ll[x])
                     sf=self.geo.add_plane_surface(self.ll[x])
@@ -122,10 +123,13 @@ class GeoFile():
                     self.geo.add_raw_code('Recombine Surface {%s};' % sf.id)
 
 
-        self.geo.add_plane_surface(domain,holes=holes)
+        sf=self.geo.add_plane_surface(domain,holes=holes)
+        if grid_type=='quad':
+            self.geo.set_transfinite_surface(sf)
+            self.geo.add_raw_code('Recombine Surface {%s};' % sf.id)
 
 
-    def addLineFromCoords(self, pts, xform, lc, physical,group_name,trans=None,progression=1) :
+    def addLineFromCoords(self, pts, xform, lc, physical,group_name,trans=None,progression=1,grid_type='tetra') :
         
         if xform :
             pts = [xform.transform(x) for x in pts]
@@ -139,7 +143,7 @@ class GeoFile():
 
         ids = [id0] + [self.writePoint(x, lc) for x in pts[1:-1]] + [id1]
 
-        if group_name == 'Channels' :
+        if group_name == 'Channels' or grid_type=='quad':
             lids = [self.writeLine(ids)] 
             if trans:
                 self.geo.set_transfinite_lines([self.l[-1]], trans, progression=progression)
@@ -179,7 +183,7 @@ class GeoFile():
 
 
 
-    def add_layer(self,layer,xform,group_name):
+    def add_layer(self,layer,xform,group_name,grid_type):
 
         name = layer.name()
         fields = layer.fields()
@@ -215,7 +219,7 @@ class GeoFile():
 
                 for loop in geom.asMultiPolygon() :
                     for line in loop:
-                        self.addLineFromCoords(line, xform, lc, physical,group_name,trans,prog)
+                        self.addLineFromCoords(line, xform, lc, physical,group_name,trans,prog,grid_type)
 
             elif geom.type() == QgsWkbTypes.LineGeometry :
                 lines = geom.asMultiPolyline()
@@ -224,7 +228,7 @@ class GeoFile():
                 else :
                     for line in lines :
 
-                        self.addLineFromCoords(line, xform, lc, physical ,group_name,trans,prog)
+                        self.addLineFromCoords(line, xform, lc, physical ,group_name,trans,prog,grid_type)
 
 
             elif geom.type() == QgsWkbTypes.PointGeometry :
@@ -314,50 +318,52 @@ class GeoFile():
     def add_sizing(self,layer,xform,group_name):
 
         name = layer.name()
-        fields = layer.fields()
-
         
 
-        Field=[]
-        for ie,feature in enumerate(layer.getFeatures()):
-            geom = feature.geometry()
-            if geom is None :
-                continue
+        if layer.type() == QgsMapLayer.RasterLayer :
+            root,f=os.path.split(layer.dataProvider().dataSourceUri())
+            fname=os.path.join(root,name+'.dat')
+
+            writeRasterLayer(layer,fname)
             options={}
-            for opt in fields.names():
-                idx=fields.indexFromName(opt)
-                options[opt.lower()]=feature[idx]
+            self.Field.append(self.addStructured( fname,**options))
 
-            if name.lower() == 'structured' :
-                point = geom.asMultiPoint()
-                fname=writeRasterLayer(layer,fname)
-                Field.append(self.addStructured( fname,**options))
-
-            if name.lower() == 'ball' :
-                point = geom.asPoint()
-                Field.append(self.addBall(point, xform,**options))
-
-
-            if name.lower() == 'box' :
-                xmin=float('inf')
-                xmax=float('inf')*-1
-                ymin=float('inf')
-                ymax=float('inf')*-1
-                lines = geom.asMultiPolyline()
-                for line in lines:
-                    if xform :
-                        line = [xform.transform(x) for x in line]
-                    for pt in line:
-                        xmin=min(xmin,pt[0])
-                        xmax=max(xmax,pt[0])
-                        ymin=min(xmin,pt[1])
-                        ymax=max(ymax,pt[1])
-
-                Field.append(self.addBox(xmin,xmax,ymin,ymax,**options))
+        else:
+            fields = layer.fields()
+            for ie,feature in enumerate(layer.getFeatures()):
+                geom = feature.geometry()
+                if geom is None :
+                    continue
+                options={}
+                for opt in fields.names():
+                    idx=fields.indexFromName(opt)
+                    options[opt.lower()]=feature[idx]
 
 
+                if name.lower() == 'ball' :
+                    point = geom.asPoint()
+                    self.Field.append(self.addBall(point, xform,**options))
 
 
-        self.geo.add_background_field(Field,aggregation_type='Min')
+                if name.lower() == 'box' :
+                    xmin=float('inf')
+                    xmax=float('inf')*-1
+                    ymin=float('inf')
+                    ymax=float('inf')*-1
+                    lines = geom.asMultiPolyline()
+                    for line in lines:
+                        if xform :
+                            line = [xform.transform(x) for x in line]
+                        for pt in line:
+                            xmin=min(xmin,pt[0])
+                            xmax=max(xmax,pt[0])
+                            ymin=min(xmin,pt[1])
+                            ymax=max(ymax,pt[1])
+
+                    self.Field.append(self.addBox(xmin,xmax,ymin,ymax,**options))
+
+
+
+        
 
         

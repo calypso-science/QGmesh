@@ -25,7 +25,7 @@ from PyQt5.QtCore import QSettings, QTranslator, qVersion, QCoreApplication,QVar
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QAction,QFileDialog,QMenu,QApplication
 
-from qgis.core import QgsProject,QgsLayerTreeGroup,Qgis,QgsCoordinateTransform,QgsWkbTypes,QgsVectorLayer,QgsField
+from qgis.core import QgsMapLayer,QgsProject,QgsLayerTreeGroup,Qgis,QgsCoordinateTransform,QgsWkbTypes,QgsVectorLayer,QgsField
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -326,6 +326,19 @@ class qgmesh:
             whats_this=".")
 
         self.raster_calc.addAction(to_wavelength)
+
+        to_scale=self.add_action(
+            icon_path,
+            text=self.tr(u'Scale value to range'),
+            callback=self.to_scale,
+            parent=self.menu_size,
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip=".",
+            whats_this=".")
+
+        self.raster_calc.addAction(to_scale)
+
         self.menu_size.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.raster_calc)
 
         self.menu.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.menu_size)
@@ -438,18 +451,27 @@ class qgmesh:
         added=[]
         for child in proj.layerTreeRoot().findGroups():        
             if child.name() in ['Boundaries','Islands','Channels']:
+                grid_type=child.customProperty('grid type')
                 for sub_subChild in child.children():
                     layer = proj.mapLayer(sub_subChild.layerId())
                     xform = QgsCoordinateTransform(layer.crs(), crs,proj)
-                    self.geo.add_layer(layer,xform,child.name())
+                    self.geo.add_layer(layer,xform,child.name(),grid_type)
                     added.append(child.name())
         
         if len(added)>0:
             self.iface.messageBar().pushMessage("Info", "layer(s): %s added to Geometry" % ','.join(added), level=Qgis.Info)
 
-        self.geo.writeSurface()
+        self.geo.writeSurface(grid_type)
 
-        
+        for child in proj.layerTreeRoot().findGroups():      
+            if child.name() in ['Sizing']:
+                for sub_subChild in child.children():
+                    layer = proj.mapLayer(sub_subChild.layerId())
+                    xform = QgsCoordinateTransform(layer.crs(), crs,proj)
+                    self.geo.add_sizing(layer,xform,child.name())
+
+        if len(self.geo.Field)>0:
+            self.geo.geo.add_background_field(self.geo.Field,aggregation_type='Min')
 
 
     def export_geofile(self):
@@ -516,13 +538,25 @@ class qgmesh:
     def to_wavelength(self):
         proj = QgsProject.instance()
         raster=[]
-        for child in proj.layerTreeRoot().findGroups():        
-            if child.name() in ['Sizing']:
-                for sub_subChild in child.children():
-                    raster.append(sub_subChild.name())
+        for child in proj.layerTreeRoot().findLayers():   
+            layer = proj.mapLayer(child.layerId())     
+            if layer.type()==QgsMapLayer.RasterLayer:
+                raster.append(layer.name())
 
-        app = QAction("",self.iface.mainWindow())
         ex = raster_calculator(raster,'wavelength')
-        sys.exit(ex.exec_())
+        ex.show()
+        ex.exec_()
+
+    def to_scale(self):
+        proj = QgsProject.instance()
+        raster=[]
+        for child in proj.layerTreeRoot().findLayers():   
+            layer = proj.mapLayer(child.layerId())     
+            if layer.type()==QgsMapLayer.RasterLayer:
+                raster.append(layer.name())
+
+        ex = raster_calculator(raster,'scale')
+        ex.show()
+        ex.exec_()
 
         
