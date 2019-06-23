@@ -6,16 +6,30 @@ from PyQt5.QtWidgets import QApplication,QVBoxLayout,QHBoxLayout,QPushButton,QDi
 from PyQt5.QtGui import QIcon
 from qgis.gui import QgsProjectionSelectionTreeWidget
 from qgis.core import *
-import sys
+import sys,os
 import numpy as np
 from PyQt5 import QtWidgets
+import struct
+
+def get_layer(layer_name):
+    proj = QgsProject.instance()
+    raster=[]
+    for child in proj.layerTreeRoot().findLayers():        
+        layer = proj.mapLayer(child.layerId())
+        if layer.name()==layer_name and layer.type()==QgsMapLayer.RasterLayer:
+            return layer
+
+def add_raster(fname,name):
+    proj = QgsProject.instance()
+    vlayer = QgsRasterLayer(fname, name)
+    proj.addMapLayer(vlayer)
 
 
-
-class raster_calculator(QWidget):
+class raster_calculator(QtWidgets.QDialog):
 
     def __init__(self,rasters,funct_name):
-        super(raster_calculator).__init__()
+        super(raster_calculator,self).__init__()
+
 
         layout = QtWidgets.QVBoxLayout()
         self.rasterSelector = QtWidgets.QListWidget()
@@ -26,7 +40,29 @@ class raster_calculator(QWidget):
             self.title = 'Wave length'
             self.setWindowTitle(self.title)
             self.initWL(layout)
-    
+        if funct_name=='scale':
+            self.title = 'Scale'
+            self.setWindowTitle(self.title)
+            self.initScale(layout)
+
+    def initScale(self,layout):
+       
+        self.minimum_value=QtWidgets.QLineEdit()
+        self.minimum_value.setText("50")
+        TitleLayout("minimum value", self.minimum_value, layout)
+
+        self.maximum_value=QtWidgets.QLineEdit()
+        self.maximum_value.setText("300")
+        TitleLayout("maximum value", self.maximum_value, layout)
+
+        self.runLayout = CancelRunLayout(self,"calculate", self.scale_calc, layout)
+        self.runLayout.runButton.setEnabled(True)
+        self.setLayout(layout)
+
+        self.setMaximumHeight(10)
+        self.resize(max(400, self.width()), self.height())
+        self.show()
+
     def initWL(self,layout):
        
         self.minimum_depth=QtWidgets.QLineEdit()
@@ -54,15 +90,46 @@ class raster_calculator(QWidget):
         g=float(self.gravity.text())
         t=float(self.period.text())
         raster=self.rasterSelector.currentItem().text()
+
+        x=(g*t**2/2/np.pi)
+        minL = x*np.sqrt(np.tanh(4*np.pi**2.*d0/t**2/g))
+
+        shapein=get_layer(raster).dataProvider().dataSourceUri()
+
+        root,f=os.path.split(shapein)
+        shapeout=os.path.join(root,'wavelength.tif')
+
+        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="((%f*sqrt(tanh(4*pi**2.*A/%f**2/%f)))*(A>%f)+ (%f)*(A<=%f))" --NoDataValue=0' % (shapein,shapeout,x,t,g,d0,minL,d0))
+        add_raster(shapeout,'wavelength')
         self.close()
-        
-        # minimum_depth=5.
-        # g=9.81
-        # T=20
-        # wid = QInputDialog.getDouble(self, "Convert to wavelength","minimum depth:", 5.00, 0, 100, 1)
-        # return wid
-        # #gdal_calc.py -A input.tif --outfile=result.tif --calc="A*(A>0)" --NoDataValue=0
+
+        return
         # # L = (g*T^2/2/pi)*sqrt(tanh(4*pi^2.*d/T^2/g));
+
+
+    def scale_calc(self):
+        Vmin=float(self.minimum_value.text())
+        Vmax=float(self.maximum_value.text())
+
+        raster=self.rasterSelector.currentItem().text()
+        
+        layer=get_layer(raster)
+        shapein=layer.dataProvider().dataSourceUri()
+        provider = layer.dataProvider()
+
+        stats = provider.bandStatistics(1, QgsRasterBandStats.All, layer.extent(), 0)
+        min_raster = stats.minimumValue
+        max_raster = stats.maximumValue
+        
+        root,f=os.path.split(shapein)
+        shapeout=os.path.join(root,'scaled.tif')
+
+        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="(((%f-%f)*(A-%f))/(%f-%f))+%f" --NoDataValue=0' % (shapein,shapeout,Vmax,Vmin,min_raster,max_raster,min_raster,Vmin))
+        add_raster(shapeout,'scaled')
+        self.close()
+        return
+
+
     def exec_(self):
         super(raster_calculator, self).exec_()
 
