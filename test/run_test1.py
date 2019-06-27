@@ -29,6 +29,7 @@ sys.path.append('/home/remy/.local/share/QGIS/QGIS3/profiles/default/processing/
 #Processing.initialize()
 
 
+
 filename=os.path.join('/home/remy/Software/QGmesh/test','quad.qgz')
 print(filename)
 proj = QgsProject.instance()
@@ -50,8 +51,7 @@ geo=GeoFile()
 for child in proj.layerTreeRoot().findGroups():      
 
     if child.name() in ['Boundaries','Islands','Channels']:
-        grid_type=child.CustomProperty['grid type']
-        for sub_subChild in child.children():
+       for sub_subChild in child.children():
             layer = proj.mapLayer(sub_subChild.layerId())
             xform = QgsCoordinateTransform(layer.crs(), crs,proj)
             geo.add_layer(layer,xform,child.name(),grid_type)
@@ -61,13 +61,12 @@ for child in proj.layerTreeRoot().findGroups():
 
 geo.writeSurface()
 
-# for child in proj.layerTreeRoot().findGroups():      
-#     if child.name() in ['Sizing']:
-#     	for sub_subChild in child.children():
-#     		layer = proj.mapLayer(sub_subChild.layerId())
-#     		xform = QgsCoordinateTransform(layer.crs(), crs,proj)
-#     		geo.add_sizing(layer,xform,child.name())
-
+for child in proj.layerTreeRoot().findGroups():      
+    if child.name() in ['Sizing']:
+    	for sub_subChild in child.children():
+    		layer = proj.mapLayer(sub_subChild.layerId())
+    		xform = QgsCoordinateTransform(layer.crs(), crs,proj)
+    		geo.add_sizing(layer,xform,child.name())
 
 
 
@@ -97,3 +96,6 @@ stri=mesh._build_string()
 outLayer = QgsMeshLayer( mesh.stri, 'shape_name',"mesh_memory")
 
 proj.addMapLayer(outLayer)
+
+
+

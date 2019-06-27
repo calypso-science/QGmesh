@@ -1,6 +1,10 @@
 import numpy as np
 from qgis.core import QgsMeshLayer,QgsProject,QgsField,QgsLayerTreeGroup
+
 from PyQt5.QtCore import QThread
+
+
+
 
 class Mesh(object) :
 
@@ -64,7 +68,11 @@ class Mesh(object) :
         else:
             G=proj.layerTreeRoot().findGroup(group)
 
+
         QThread.sleep(1)
+
+
+
 
         proj = QgsProject.instance()
         crs=proj.crs()
@@ -81,7 +89,6 @@ class Mesh(object) :
         # clone = layer.clone()
         # G.insertChildNode(0, clone)
         # root.removeChildNode(layer)
-
 
 
     def writeUnstructuredGridSMS(self, mesh):

@@ -124,7 +124,11 @@ class raster_calculator(QtWidgets.QDialog):
         root,f=os.path.split(shapein)
         shapeout=os.path.join(root,'scaled.tif')
 
+<<<<<<< HEAD
         os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="(((%f-%f)*(A-%f))/(%f-%f))+%f" --NoDataValue=%f' % (shapein,shapeout,Vmax,Vmin,min_raster,max_raster,min_raster,Vmin,Vmin))
+=======
+        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="(((%f-%f)*(A-%f))/(%f-%f))+%f" --NoDataValue=0' % (shapein,shapeout,Vmax,Vmin,min_raster,max_raster,min_raster,Vmin))
+>>>>>>> ff0f97fb1afb415a51a65fd51951376debf3030e
         add_raster(shapeout,'scaled')
         self.close()
         return

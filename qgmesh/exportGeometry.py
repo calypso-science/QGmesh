@@ -6,9 +6,12 @@ import pygmsh
 import os
 from .tools import writeRasterLayer
 
+
 def get_corner(surface,geofile):
     import pdb;pdb.set_trace()
     return p1,p2,p3,p4
+
+
 
 def samepoint(a, b) :
     return ((a[0] - b[0])**2 + (a[1] - b[1])**2)**0.5 < 1e-8
@@ -70,6 +73,7 @@ class GeoFile():
         self.Field=[]
 
     def writePoint(self, pt, lc) :
+
         self.p.append(self.geo.add_point([pt[0],pt[1], 0.],lcar=lc))
         self.ip += 1
 
@@ -142,8 +146,11 @@ class GeoFile():
         if progression==0:
             progression=None
 
+
+       
         if xform :
             pts = [xform.transform(x) for x in pts]
+ 
         firstp = self.ip
         id0 = self.writePointCheckLineLoops(pts[0], lc)
         if samepoint(pts[0], pts[-1]) :
@@ -157,8 +164,8 @@ class GeoFile():
         if group_name == 'Channels' or grid_type=='quad':
             lids = [self.writeLine(ids)] 
 
-            self.geo.set_transfinite_lines([self.l[-1]], trans, progression=progression, bump=bump)
 
+            self.geo.set_transfinite_lines([self.l[-1]], trans, progression=progression, bump=bump)
         else:
             lids = [self.writeLine((ids[i],ids[i+1])) for i in range(len(ids)-1)]
 
@@ -203,13 +210,20 @@ class GeoFile():
         physical_idx = fields.indexFromName("physical")
         trans_idx = fields.indexFromName("trans")
         prog_idx = fields.indexFromName("prog")
+<<<<<<< HEAD
         bump_idx = fields.indexFromName("bump")
+=======
+>>>>>>> ff0f97fb1afb415a51a65fd51951376debf3030e
         
         lc = None
         physical = None
         trans=None
+<<<<<<< HEAD
         prog=None
         bump=None
+=======
+        prog=1
+>>>>>>> ff0f97fb1afb415a51a65fd51951376debf3030e
         L=[]
         for ie,feature in enumerate(layer.getFeatures()):
             geom = feature.geometry()
@@ -228,14 +242,21 @@ class GeoFile():
             if prog_idx >= 0 :
                 prog = feature[prog_idx]
 
+<<<<<<< HEAD
             if bump_idx >= 0 :
                 bump = feature[bump_idx]
 
+=======
+>>>>>>> ff0f97fb1afb415a51a65fd51951376debf3030e
             if geom.type() == QgsWkbTypes.PolygonGeometry :
 
                 for loop in geom.asMultiPolygon() :
                     for line in loop:
+<<<<<<< HEAD
                         self.addLineFromCoords(line, xform, lc, physical,group_name,trans,bump,prog,grid_type)
+=======
+                        self.addLineFromCoords(line, xform, lc, physical,group_name,trans,prog,grid_type)
+>>>>>>> ff0f97fb1afb415a51a65fd51951376debf3030e
 
             elif geom.type() == QgsWkbTypes.LineGeometry :
                 lines = geom.asMultiPolyline()
@@ -244,7 +265,11 @@ class GeoFile():
                 else :
                     for line in lines :
 
+<<<<<<< HEAD
                         self.addLineFromCoords(line, xform, lc, physical ,group_name,trans,bump,prog,grid_type)
+=======
+                        self.addLineFromCoords(line, xform, lc, physical ,group_name,trans,prog,grid_type)
+>>>>>>> ff0f97fb1afb415a51a65fd51951376debf3030e
 
 
             elif geom.type() == QgsWkbTypes.PointGeometry :
@@ -329,6 +354,7 @@ class GeoFile():
         if vout:
             self.geo._GMSH_CODE.append("Field[{}].VOut= {!r};".format(name, vout))
 
+<<<<<<< HEAD
         #self.geo._GMSH_CODE.append("Mesh.CharacteristicLengthFromPoints = 0;")
         #self.geo._GMSH_CODE.append("Mesh.CharacteristicLengthFromCurvature = 0;")
         #self.geo._GMSH_CODE.append("Mesh.CharacteristicLengthExtendFromBoundary = 0;")
@@ -336,6 +362,8 @@ class GeoFile():
 
 
 
+=======
+>>>>>>> ff0f97fb1afb415a51a65fd51951376debf3030e
         return name
 
     def add_sizing(self,layer,xform,group_name):
