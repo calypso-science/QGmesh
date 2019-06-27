@@ -119,7 +119,7 @@ class GeoFile():
         self.ill += 1
         return self.ill - 1
 
-    def writeSurface(self,grid_type) :
+    def writeSurface(self,grid_type,transfinite=False) :
 
         holes=[]
         domain=[]
@@ -143,13 +143,11 @@ class GeoFile():
 
 
         sf=self.geo.add_plane_surface(domain,holes=holes)
-        if grid_type=='quad':
-            # try:
-            #     self.geo.set_transfinite_surface(sf)
-            # except:
+        if transfinite =='True':
             ids=self.get_corner(sf)
             self.geo.add_raw_code('Transfinite Surface{%s} = {%s};' %(sf.id,','.join(ids)))
 
+        if grid_type=='quad':
             self.geo.add_raw_code('Recombine Surface {%s};' % sf.id)
 
 
@@ -176,10 +174,8 @@ class GeoFile():
 
         ids = [id0] + [self.writePoint(x, lc) for x in pts[1:-1]] + [id1]
 
-        if group_name == 'Channels' or grid_type=='quad':
+        if group_name == 'Channels' or (grid_type=='quad' and group_name!='Islands'):
             lids = [self.writeLine(ids)] 
-
-
             self.geo.set_transfinite_lines([self.l[-1]], trans, progression=progression, bump=bump)
         else:
             lids = [self.writeLine((ids[i],ids[i+1])) for i in range(len(ids)-1)]

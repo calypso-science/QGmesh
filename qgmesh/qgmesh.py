@@ -437,6 +437,7 @@ class qgmesh:
             if group not in childs:
                 gr=proj.layerTreeRoot().addGroup(group)
                 gr.setCustomProperty('grid type','quad')
+
             else:
                 exists_already.append(group)
 
@@ -449,9 +450,12 @@ class qgmesh:
         crs=proj.crs()
         self.geo=GeoFile()
         added=[]
+        transfinite=False
         for child in proj.layerTreeRoot().findGroups():        
             if child.name() in ['Boundaries','Islands','Channels']:
                 grid_type=child.customProperty('grid type')
+                if child.name()=='Boundaries':
+                    transfinite=child.customProperty('wmsTitle')
                 for sub_subChild in child.children():
                     layer = proj.mapLayer(sub_subChild.layerId())
                     xform = QgsCoordinateTransform(layer.crs(), crs,proj)
@@ -461,7 +465,7 @@ class qgmesh:
         if len(added)>0:
             self.iface.messageBar().pushMessage("Info", "layer(s): %s added to Geometry" % ','.join(added), level=Qgis.Info)
 
-        self.geo.writeSurface(grid_type)
+        self.geo.writeSurface(grid_type,transfinite)
 
         for child in proj.layerTreeRoot().findGroups():      
             if child.name() in ['Sizing']:
