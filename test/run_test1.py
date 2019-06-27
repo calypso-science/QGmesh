@@ -83,7 +83,7 @@ for child in proj.layerTreeRoot().findGroups():
 # sys.stdout = myStream
 
 # msh=main.exec_()
-msh=pygmsh.generate_mesh(geo.geo)
+msh=pygmsh.generate_mesh(geo.geo,extra_gmsh_arguments=['-2','-algo','front2d','-epslc1d','1e-3'])
 
 mesh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cell_data=msh.cell_data,field_data=msh.field_data)
 

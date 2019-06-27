@@ -4,12 +4,13 @@ from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt,pyqtRemoveInputHook,QFileInfo
 import pygmsh
 import os
-from .tools import writeRasterLayer
+try:
+    from tools import writeRasterLayer
+except:
+    from .tools import writeRasterLayer
 
 
-def get_corner(surface,geofile):
-    import pdb;pdb.set_trace()
-    return p1,p2,p3,p4
+
 
 
 
@@ -71,6 +72,20 @@ class GeoFile():
         self.physicals_ll={}
         self.channel_border=[]
         self.Field=[]
+        self.corners=[]
+
+    def get_corner(self,surface):
+        Xcorners=[x[0] for x in self.corners]
+        Ycorners=[x[1] for x in self.corners]
+        ids=set()
+        for line in surface.line_loop.lines:
+            for point in line.points:
+                if point.x[0] in Xcorners and point.x[1] in Ycorners:
+                    ids.add(point.id)
+
+
+
+        return ids
 
     def writePoint(self, pt, lc) :
 
@@ -132,8 +147,8 @@ class GeoFile():
             # try:
             #     self.geo.set_transfinite_surface(sf)
             # except:
-            p1,p2,p3,p4=get_corner(sf,self.geo)
-            self.geo.add_raw_code('Transfinite Surface{%s} = {%s,%s,%s,%s};' %(sf.id,p1.id,p2.id,p3.id,p4.id))
+            ids=self.get_corner(sf)
+            self.geo.add_raw_code('Transfinite Surface{%s} = {%s};' %(sf.id,','.join(ids)))
 
             self.geo.add_raw_code('Recombine Surface {%s};' % sf.id)
 
@@ -210,20 +225,20 @@ class GeoFile():
         physical_idx = fields.indexFromName("physical")
         trans_idx = fields.indexFromName("trans")
         prog_idx = fields.indexFromName("prog")
-<<<<<<< HEAD
+
         bump_idx = fields.indexFromName("bump")
-=======
->>>>>>> ff0f97fb1afb415a51a65fd51951376debf3030e
+
+
         
         lc = None
         physical = None
         trans=None
-<<<<<<< HEAD
+
         prog=None
         bump=None
-=======
-        prog=1
->>>>>>> ff0f97fb1afb415a51a65fd51951376debf3030e
+
+
+
         L=[]
         for ie,feature in enumerate(layer.getFeatures()):
             geom = feature.geometry()
@@ -242,21 +257,18 @@ class GeoFile():
             if prog_idx >= 0 :
                 prog = feature[prog_idx]
 
-<<<<<<< HEAD
+
             if bump_idx >= 0 :
                 bump = feature[bump_idx]
 
-=======
->>>>>>> ff0f97fb1afb415a51a65fd51951376debf3030e
+
             if geom.type() == QgsWkbTypes.PolygonGeometry :
 
                 for loop in geom.asMultiPolygon() :
                     for line in loop:
-<<<<<<< HEAD
+
                         self.addLineFromCoords(line, xform, lc, physical,group_name,trans,bump,prog,grid_type)
-=======
-                        self.addLineFromCoords(line, xform, lc, physical,group_name,trans,prog,grid_type)
->>>>>>> ff0f97fb1afb415a51a65fd51951376debf3030e
+
 
             elif geom.type() == QgsWkbTypes.LineGeometry :
                 lines = geom.asMultiPolyline()
@@ -265,15 +277,14 @@ class GeoFile():
                 else :
                     for line in lines :
 
-<<<<<<< HEAD
                         self.addLineFromCoords(line, xform, lc, physical ,group_name,trans,bump,prog,grid_type)
-=======
-                        self.addLineFromCoords(line, xform, lc, physical ,group_name,trans,prog,grid_type)
->>>>>>> ff0f97fb1afb415a51a65fd51951376debf3030e
 
 
             elif geom.type() == QgsWkbTypes.PointGeometry :
-                 print ('asPoint()')
+                if name=='corners':
+                    self.corners.append(geom.asPoint())
+                else:
+                    print ('asPoint()')
 
     def addBall(self,pt,xform,
          radius=None,
@@ -354,16 +365,14 @@ class GeoFile():
         if vout:
             self.geo._GMSH_CODE.append("Field[{}].VOut= {!r};".format(name, vout))
 
-<<<<<<< HEAD
-        #self.geo._GMSH_CODE.append("Mesh.CharacteristicLengthFromPoints = 0;")
-        #self.geo._GMSH_CODE.append("Mesh.CharacteristicLengthFromCurvature = 0;")
-        #self.geo._GMSH_CODE.append("Mesh.CharacteristicLengthExtendFromBoundary = 0;")
+
+        self.geo._GMSH_CODE.append("Mesh.CharacteristicLengthFromPoints = 0;")
+        self.geo._GMSH_CODE.append("Mesh.CharacteristicLengthFromCurvature = 0;")
+        self.geo._GMSH_CODE.append("Mesh.CharacteristicLengthExtendFromBoundary = 0;")
 
 
 
 
-=======
->>>>>>> ff0f97fb1afb415a51a65fd51951376debf3030e
         return name
 
     def add_sizing(self,layer,xform,group_name):
