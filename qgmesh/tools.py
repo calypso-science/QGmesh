@@ -124,7 +124,7 @@ class raster_calculator(QtWidgets.QDialog):
         root,f=os.path.split(shapein)
         shapeout=os.path.join(root,'scaled.tif')
 
-        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="(((%f-%f)*(A-%f))/(%f-%f))+%f" --NoDataValue=0' % (shapein,shapeout,Vmax,Vmin,min_raster,max_raster,min_raster,Vmin))
+        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="(((%f-%f)*(A-%f))/(%f-%f))+%f" --NoDataValue=%f' % (shapein,shapeout,Vmax,Vmin,min_raster,max_raster,min_raster,Vmin,Vmin))
         add_raster(shapeout,'scaled')
         self.close()
         return
@@ -138,19 +138,32 @@ def writeRasterLayer(layer, filename) :
     progress.setMinimumDuration(0)
     progress.setWindowModality(Qt.WindowModal)
     progress.setValue(0)
-    f = open(filename, "wb")
+    f = open(filename, "w")
     ext = layer.extent()
-    f.write(struct.pack("3d", ext.xMinimum(), ext.yMinimum(), 0))
-    f.write(struct.pack("3d", ext.width() / layer.width(), ext.height() / layer.height(), 1))
-    f.write(struct.pack("3i", layer.width(), layer.height(), 1))
+    f.write('%f\t%f\t%f\n' % (ext.xMinimum(), ext.yMinimum(), 0))
+    f.write('%f\t%f\t%f\n' % (ext.width() / layer.width(), ext.height() / layer.height(), 1))
+    f.write('%f\t%f\t%f\n' % (layer.width(), layer.height(), 1))
     block = layer.dataProvider().block(1, layer.extent(), layer.width(), layer.height())
     for j in range(layer.width()) : 
         progress.setValue(j)
         if progress.wasCanceled():
             return False
         v = list([block.value(i, j) for i in range(layer.height() -1, -1, -1)])
-        f.write(struct.pack("{}d".format(len(v)), *v))
+        f.write('\t'.join(str(x) for x in v)+'\n')
     f.close()
+    # f = open(filename, "wb")
+    # ext = layer.extent()
+    # f.write(struct.pack("3d", ext.xMinimum(), ext.yMinimum(), 0))
+    # f.write(struct.pack("3d", ext.width() / layer.width(), ext.height() / layer.height(), 1))
+    # f.write(struct.pack("3i", layer.width(), layer.height(), 1))
+    # block = layer.dataProvider().block(1, layer.extent(), layer.width(), layer.height())
+    # for j in range(layer.width()) : 
+    #     progress.setValue(j)
+    #     if progress.wasCanceled():
+    #         return False
+    #     v = list([block.value(i, j) for i in range(layer.height() -1, -1, -1)])
+    #     f.write(struct.pack("{}d".format(len(v)), *v))
+    # f.close()
     return True
 
 class TitleLayout(QVBoxLayout) :
