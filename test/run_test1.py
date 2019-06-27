@@ -51,7 +51,8 @@ geo=GeoFile()
 for child in proj.layerTreeRoot().findGroups():      
 
     if child.name() in ['Boundaries','Islands','Channels']:
-       for sub_subChild in child.children():
+        grid_type=child.customProperty('grid type')
+        for sub_subChild in child.children():
             layer = proj.mapLayer(sub_subChild.layerId())
             xform = QgsCoordinateTransform(layer.crs(), crs,proj)
             geo.add_layer(layer,xform,child.name(),grid_type)
@@ -59,7 +60,7 @@ for child in proj.layerTreeRoot().findGroups():
 
 
 
-geo.writeSurface()
+geo.writeSurface(grid_type)
 
 for child in proj.layerTreeRoot().findGroups():      
     if child.name() in ['Sizing']:
