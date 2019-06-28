@@ -339,6 +339,19 @@ class qgmesh:
 
         self.raster_calc.addAction(to_scale)
 
+        to_dist=self.add_action(
+            icon_path,
+            text=self.tr(u'Calculate distances'),
+            callback=self.to_dist,
+            parent=self.menu_size,
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip=".",
+            whats_this=".")
+
+        self.raster_calc.addAction(to_dist)
+
+
         self.menu_size.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.raster_calc)
 
         self.menu.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.menu_size)
@@ -536,7 +549,8 @@ class qgmesh:
         msh=main.exec_()
         msh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cell_data=msh.cell_data,field_data=msh.field_data)
         self.mesh=Mesh(msh)
-        self.mesh.to_shapefile('new_grid')
+        self.mesh.to_Gridshapefile('new_grid')
+        self.mesh.writeShapefile('/tmp/new_grid','points')
 
 
     def to_wavelength(self):
@@ -563,4 +577,14 @@ class qgmesh:
         ex.show()
         ex.exec_()
 
-        
+    def to_dist(self):
+        proj = QgsProject.instance()
+        raster=[]
+        for child in proj.layerTreeRoot().findLayers():   
+            layer = proj.mapLayer(child.layerId())     
+            if layer.type()!=QgsMapLayer.RasterLayer:
+                raster.append(layer.name())
+
+        ex = raster_calculator(raster,'distance')
+        ex.show()
+        ex.exec_()     

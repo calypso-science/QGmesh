@@ -10,13 +10,14 @@ import sys,os
 import numpy as np
 from PyQt5 import QtWidgets
 import struct
+from datetime import datetime
 
 def get_layer(layer_name):
     proj = QgsProject.instance()
     raster=[]
     for child in proj.layerTreeRoot().findLayers():        
         layer = proj.mapLayer(child.layerId())
-        if layer.name()==layer_name and layer.type()==QgsMapLayer.RasterLayer:
+        if layer.name()==layer_name #and layer.type()==QgsMapLayer.RasterLayer:
             return layer
 
 def add_raster(fname,name):
@@ -24,6 +25,43 @@ def add_raster(fname,name):
     vlayer = QgsRasterLayer(fname, name)
     proj.addMapLayer(vlayer)
 
+def write_raster(shapesSHPFilename,rasterisedShapesFilename):
+    #raster bound
+    xiMin = xiMin
+    xiMax = xiMax
+    etaMin = etaMin
+    etaMax = etaMax
+
+    # raster resolution
+    numb_xiPoints = numb_xiPoints
+    numb_etaPoints = numb_etaPoints
+
+    # Calculate output resolution
+    delta_xi = abs(xiMax - xiMin)/(numb_xiPoints-1)
+    delta_eta = abs(etaMax - etaMin)/(numb_etaPoints-1)
+    # The distance function calculation is here carried out using gdal_proximity.
+    # In order for that utility to give accurate distances the pixels must be
+    # square: delta_xi == delta_eta. Below we check for that condition, 
+    # and if not the case we change the resolution and/or enlarge the raster
+    # extents, to make the pixels square.
+    if delta_xi != delta_eta:
+        if delta_xi < delta_eta:
+            delta_eta = delta_xi
+            numb_etaPoints = (abs(etaMax - etaMin)/delta_eta) + 1
+            numb_etaPoints = int(np.ceil(numb_etaPoints))
+            etaMax = delta_eta*(numb_etaPoints - 1) + etaMin
+        elif delta_eta < delta_xi:
+            delta_xi = delta_eta
+            numb_xiPoints = (abs(xiMax - xiMin)/delta_xi) + 1
+            numb_xiPoints = int(np.ceil(numb_xiPoints))
+            xiMax = delta_xi*(numb_xiPoints - 1) + xiMin
+
+
+    gdal_rasterize_cmd = ['gdal_rasterize',
+          '-q','-burn','1','-a_nodata','0','-init','0','-at',
+          '-tr',str(delta_xi),str(delta_eta),
+          '-te',str(self.xiMin),str(self.etaMin),str(self.xiMax),str(self.etaMax),
+          '-of','netCDF',shapesSHPFilename,rasterisedShapesFilename]
 
 class raster_calculator(QtWidgets.QDialog):
 
@@ -34,7 +72,10 @@ class raster_calculator(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout()
         self.rasterSelector = QtWidgets.QListWidget()
         self.rasterSelector.addItems(rasters)
-        TitleLayout("Raster", self.rasterSelector, layout)
+        if funct_name=='distance':
+            TitleLayout("Shapes", self.rasterSelector, layout)
+        else:
+            TitleLayout("Raster", self.rasterSelector, layout)
 
         if funct_name=='wavelength':
             self.title = 'Wave length'
@@ -44,6 +85,29 @@ class raster_calculator(QtWidgets.QDialog):
             self.title = 'Scale'
             self.setWindowTitle(self.title)
             self.initScale(layout)
+
+        if funct_name=='distance':
+            self.title = 'Distance'
+            self.setWindowTitle(self.title)
+            self.initDist(layout)
+
+    def initDist(self,layout):
+       
+        self.gradationDistance=QtWidgets.QLineEdit()
+        self.gradationDistance.setText("1")
+        TitleLayout("gradationDistance", self.gradationDistance, layout)
+
+        self.gradationStartDistance=QtWidgets.QLineEdit()
+        self.gradationStartDistance.setText("0.01")
+        TitleLayout("gradationStartDistance", self.gradationStartDistance, layout)
+
+        self.runLayout = CancelRunLayout(self,"calculate", self.dist_calc, layout)
+        self.runLayout.runButton.setEnabled(True)
+        self.setLayout(layout)
+
+        self.setMaximumHeight(10)
+        self.resize(max(400, self.width()), self.height())
+        self.show()
 
     def initScale(self,layout):
        
@@ -105,6 +169,38 @@ class raster_calculator(QtWidgets.QDialog):
 
         return
         # # L = (g*T^2/2/pi)*sqrt(tanh(4*pi^2.*d/T^2/g));
+
+    def dist_calc(self):
+        """ Set the gradation parameters. """
+        #(5.0,15000.0,1.0,0.01)
+        gradationDistance=float(self.gradationDistance.text())
+        gradationStartDistance=float(self.gradationStartDistance.text())
+        shapein=get_layer(raster).dataProvider().dataSourceUri()
+        time = datetime.now()
+        shapesSHPFilename = '/tmp/shapes'+time.isoformat()+'.shp'
+        rasterisedShapesFilename = '/tmp/rasterisedShapes'+time.isoformat()+'.nc'
+        write_raster('tmp/scale')
+
+        """ Compute the linear gradation. """
+
+        # Construct temporary file-names.
+
+        # Calculate and read-in distance-function.
+        # self.writeDistanceNetCDF(rasterisedDistanceFile)
+        # logLevel = LOG.level
+        # LOG.setLevel('WARNING')
+        # self.fromFile(rasterisedDistanceFile)
+        # LOG.setLevel(logLevel)
+        # # Map distance to mesh-size-metric
+        # meshSizeMetric = self.variableData*((float(self.metricAwayFromShapes) - float(self.metricAtShapes))/float(self.gradationDistance)) + \
+        #       float(self.metricAwayFromShapes) - (float(self.gradationDistance) + float(self.gradationStartDistance))*\
+        #       ((float(self.metricAwayFromShapes) - float(self.metricAtShapes))/float(self.gradationDistance))
+        # meshSizeMetric = np.maximum(meshSizeMetric, np.ones_like(meshSizeMetric)*float(self.metricAtShapes))
+        # meshSizeMetric = np.minimum(meshSizeMetric, np.ones_like(meshSizeMetric)*float(self.metricAwayFromShapes))
+        # self.variableData = meshSizeMetric
+        # Clean-up temporary files.
+        self.close()
+        return
 
 
     def scale_calc(self):

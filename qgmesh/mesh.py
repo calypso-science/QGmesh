@@ -1,5 +1,5 @@
 import numpy as np
-from qgis.core import QgsMeshLayer,QgsProject,QgsField,QgsLayerTreeGroup
+from qgis.core import QgsWkbTypes,QgsVectorFileWriter,QgsMeshLayer,QgsProject,QgsField,QgsFields,QgsLayerTreeGroup,QgsCoordinateReferenceSystem,QgsPointXY,QgsFeature,QgsGeometry
 
 from PyQt5.QtCore import QThread
 
@@ -17,6 +17,9 @@ class Mesh(object) :
         self.z=mesh.points[:,2]
         self.nodes=np.arange(1,len(self.x)+1)
         self.triangles=mesh.cells
+        proj = QgsProject.instance()
+        self.crs=proj.crs()
+
         tot=0
         tri_len=0
         quad_len=0
@@ -29,6 +32,8 @@ class Mesh(object) :
             tot+=quad_len
 
         self.triangles=np.ones((tot,4),int)*-1
+
+        self.edges=mesh.cells['line']
 
         if 'triangle' in mesh.cells:
             self.triangles[0:tri_len,0:3]=mesh.cells['triangle']
@@ -51,7 +56,7 @@ class Mesh(object) :
 
 
         self.stri=stri
-    def to_shapefile(self,shape_name):
+    def to_Gridshapefile(self,shape_name):
 
 
         group='Mesh'
@@ -74,8 +79,7 @@ class Mesh(object) :
 
 
 
-        proj = QgsProject.instance()
-        crs=proj.crs()
+
         self._build_string()
         outLayer = QgsMeshLayer( self.stri, \
             shape_name, \
@@ -89,7 +93,48 @@ class Mesh(object) :
         # clone = layer.clone()
         # G.insertChildNode(0, clone)
         # root.removeChildNode(layer)
+    def writeShapefile(self, filename,shape_type):
 
+        if filename[-4:]!='.shp':
+              filename += '.shp'
+
+        proj = QgsProject.instance()
+        crs=proj.crs()
+        #Create new shapefile object, loop trough triangle edges and add each
+        # edge as a line.
+
+
+        fileWriter = QgsVectorFileWriter(filename,
+                   "system", QgsFields(), QgsWkbTypes.Point, crs,
+                   "ESRI Shapefile")
+        if fileWriter.hasError() != QgsVectorFileWriter.NoError:
+            raise Exception('Error when creating shapefile '+filename+
+                        ' : '+str(fileWriter.hasError()))
+
+        if shape_type == 'points':
+            for node in range(0,len(self.x)):
+                point = QgsPointXY()
+                point.setX(self.x[node])
+                point.setY(self.y[node])
+                newFeature = QgsFeature()
+                newFeature.setGeometry(QgsGeometry.fromPointXY(point))
+                fileWriter.addFeature(newFeature)
+
+            # #Write new features to shapefile.
+            # for edge in self.edges:
+            #     pointsList = []
+            #     for node in edge:
+            #             point = QgsPoint()
+            #             point.setX(self.x[node])
+            #             point.setY(self.y[node])
+            #             pointsList.append(point)
+            #     pointsList.append(pointsList[0])
+
+            #     newFeature = QgsFeature()
+            #     newFeature.setGeometry(QgsGeometry.fromPolyline(pointsList))
+            #     fileWriter.addFeature(newFeature)
+
+        del fileWriter
 
     def writeUnstructuredGridSMS(self, mesh):
         """

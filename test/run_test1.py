@@ -51,7 +51,7 @@ geo=GeoFile()
 for child in proj.layerTreeRoot().findGroups():      
 
     if child.name() in ['Boundaries','Islands','Channels']:
-        grid_type=child.customProperty('grid type')
+        grid_type='tetra'#child.customProperty('grid type')
         for sub_subChild in child.children():
             layer = proj.mapLayer(sub_subChild.layerId())
             xform = QgsCoordinateTransform(layer.crs(), crs,proj)
@@ -89,14 +89,15 @@ mesh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cel
 
 mesh=Mesh(mesh)
 
-stri=mesh._build_string()
+mesh.writeShapefile('meshshape')
+#stri=mesh._build_string()
 #mesh.writeUnstructuredGridSMS('temp.sms')
 
 
 
-outLayer = QgsMeshLayer( mesh.stri, 'shape_name',"mesh_memory")
+# outLayer = QgsMeshLayer( mesh.stri, 'shape_name',"mesh_memory")
 
-proj.addMapLayer(outLayer)
+# proj.addMapLayer(outLayer)
 
 
 
