@@ -11,13 +11,14 @@ import numpy as np
 from PyQt5 import QtWidgets
 import struct
 from datetime import datetime
+from qgis.utils import iface
 
 def get_layer(layer_name):
     proj = QgsProject.instance()
     raster=[]
     for child in proj.layerTreeRoot().findLayers():        
         layer = proj.mapLayer(child.layerId())
-        if layer.name()==layer_name #and layer.type()==QgsMapLayer.RasterLayer:
+        if layer.name()==layer_name: #and layer.type()==QgsMapLayer.RasterLayer:
             return layer
 
 def add_raster(fname,name):
@@ -25,16 +26,16 @@ def add_raster(fname,name):
     vlayer = QgsRasterLayer(fname, name)
     proj.addMapLayer(vlayer)
 
-def write_raster(shapesSHPFilename,rasterisedShapesFilename):
+def write_raster(shapesSHPFilename,rasterisedShapesFilename,xy,res):
     #raster bound
-    xiMin = xiMin
-    xiMax = xiMax
-    etaMin = etaMin
-    etaMax = etaMax
+    xiMin = xy[0]
+    xiMax = xy[1]
+    etaMin = xy[2]
+    etaMax = xy[3]
 
     # raster resolution
-    numb_xiPoints = numb_xiPoints
-    numb_etaPoints = numb_etaPoints
+    numb_xiPoints = res[0]
+    numb_etaPoints = res[1]
 
     # Calculate output resolution
     delta_xi = abs(xiMax - xiMin)/(numb_xiPoints-1)
@@ -100,6 +101,21 @@ class raster_calculator(QtWidgets.QDialog):
         self.gradationStartDistance=QtWidgets.QLineEdit()
         self.gradationStartDistance.setText("0.01")
         TitleLayout("gradationStartDistance", self.gradationStartDistance, layout)
+
+        layer = iface.activeLayer() # load the layer as you want
+        ext = layer.extent()
+        xmin = ext.xMinimum()
+        xmax = ext.xMaximum()
+        ymin = ext.yMinimum()
+        ymax = ext.yMaximum()
+        coords = "%f,%f,%f,%f" %(xmin, xmax, ymin, ymax)
+        self.extent=QtWidgets.QLineEdit()
+        self.extent.setText(coords)
+        TitleLayout("Raster extent", self.extent, layout)
+
+        self.res=QtWidgets.QLineEdit()
+        self.res.setText('10,10')
+        TitleLayout("Raster resolution", self.res, layout)
 
         self.runLayout = CancelRunLayout(self,"calculate", self.dist_calc, layout)
         self.runLayout.runButton.setEnabled(True)
@@ -175,11 +191,14 @@ class raster_calculator(QtWidgets.QDialog):
         #(5.0,15000.0,1.0,0.01)
         gradationDistance=float(self.gradationDistance.text())
         gradationStartDistance=float(self.gradationStartDistance.text())
-        shapein=get_layer(raster).dataProvider().dataSourceUri()
+        shapein=self.rasterSelector.currentItem().text()
+        shapein=get_layer(shapein).dataProvider().dataSourceUri()
+        extent=[float(x) for x in self.extent.text().split(',')]
+        res=[float(x) for x in self.res.text().split(',')]
         time = datetime.now()
         shapesSHPFilename = '/tmp/shapes'+time.isoformat()+'.shp'
         rasterisedShapesFilename = '/tmp/rasterisedShapes'+time.isoformat()+'.nc'
-        write_raster('tmp/scale')
+        write_raster(shapesSHPFilename,rasterisedShapesFilename,extent,res)
 
         """ Compute the linear gradation. """
 
