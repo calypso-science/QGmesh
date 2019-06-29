@@ -58,11 +58,10 @@ def write_raster(shapesSHPFilename,rasterisedShapesFilename,xy,res):
             xiMax = delta_xi*(numb_xiPoints - 1) + xiMin
 
 
-    gdal_rasterize_cmd = ['gdal_rasterize',
-          '-q','-burn','1','-a_nodata','0','-init','0','-at',
-          '-tr',str(delta_xi),str(delta_eta),
-          '-te',str(self.xiMin),str(self.etaMin),str(self.xiMax),str(self.etaMax),
-          '-of','netCDF',shapesSHPFilename,rasterisedShapesFilename]
+    gdal_rasterize_cmd = 'gdal_rasterize -q -burn 1 -a_nodata 0 -init 0 -at -tr %f %f -te %f %f %f %f -of netCDF %s %s' \
+    % (delta_xi,delta_eta,xiMin,etaMin,xiMax,etaMax,shapesSHPFilename,rasterisedShapesFilename)
+
+    os.system(gdal_rasterize_cmd)
 
 class raster_calculator(QtWidgets.QDialog):
 
@@ -192,16 +191,19 @@ class raster_calculator(QtWidgets.QDialog):
         gradationDistance=float(self.gradationDistance.text())
         gradationStartDistance=float(self.gradationStartDistance.text())
         shapein=self.rasterSelector.currentItem().text()
-        shapein=get_layer(shapein).dataProvider().dataSourceUri()
+        shapesSHPFilename=get_layer(shapein).dataProvider().dataSourceUri()
         extent=[float(x) for x in self.extent.text().split(',')]
         res=[float(x) for x in self.res.text().split(',')]
         time = datetime.now()
-        shapesSHPFilename = '/tmp/shapes'+time.isoformat()+'.shp'
+
         rasterisedShapesFilename = '/tmp/rasterisedShapes'+time.isoformat()+'.nc'
+        outputRasterFilename='/tmp/raster_distance.tif'
         write_raster(shapesSHPFilename,rasterisedShapesFilename,extent,res)
 
-        """ Compute the linear gradation. """
+        gdal_proximity_cmd = 'gdal_proximity.py -q %s %s -distunits GEO' % (rasterisedShapesFilename,outputRasterFilename)
 
+        os.system(gdal_proximity_cmd)
+        add_raster(outputRasterFilename,'distance')
         # Construct temporary file-names.
 
         # Calculate and read-in distance-function.
