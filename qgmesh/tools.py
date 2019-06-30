@@ -113,7 +113,7 @@ class raster_calculator(QtWidgets.QDialog):
         TitleLayout("Raster extent", self.extent, layout)
 
         self.res=QtWidgets.QLineEdit()
-        self.res.setText('10,10')
+        self.res.setText('100,100')
         TitleLayout("Raster resolution", self.res, layout)
 
         self.runLayout = CancelRunLayout(self,"calculate", self.dist_calc, layout)
@@ -191,19 +191,31 @@ class raster_calculator(QtWidgets.QDialog):
         gradationDistance=float(self.gradationDistance.text())
         gradationStartDistance=float(self.gradationStartDistance.text())
         shapein=self.rasterSelector.currentItem().text()
-        shapesSHPFilename=get_layer(shapein).dataProvider().dataSourceUri()
+        shapesSHPFilename=get_layer(shapein).dataProvider().dataSourceUri().split('|')[0]
         extent=[float(x) for x in self.extent.text().split(',')]
         res=[float(x) for x in self.res.text().split(',')]
         time = datetime.now()
 
-        rasterisedShapesFilename = '/tmp/rasterisedShapes'+time.isoformat()+'.nc'
-        outputRasterFilename='/tmp/raster_distance.tif'
+
+        rasterisedShapesFilename='/tmp/raster_dist.nc'
+        outputRasterFilename='/tmp/distance.tif'
+
+        if os.path.isfile(rasterisedShapesFilename):
+            os.system('rm -f %s' % rasterisedShapesFilename)
+
+        if os.path.isfile(outputRasterFilename):
+            os.system('rm -f %s' % outputRasterFilename)
+
         write_raster(shapesSHPFilename,rasterisedShapesFilename,extent,res)
 
-        gdal_proximity_cmd = 'gdal_proximity.py -q %s %s -distunits GEO' % (rasterisedShapesFilename,outputRasterFilename)
+        gdal_proximity_cmd = 'gdal_proximity.py -q %s %s -of GTiff -distunits GEO ' % (rasterisedShapesFilename,outputRasterFilename)
 
         os.system(gdal_proximity_cmd)
         add_raster(outputRasterFilename,'distance')
+
+        if os.path.isfile(rasterisedShapesFilename):
+            os.system('rm -f %s' % rasterisedShapesFilename)
+
         # Construct temporary file-names.
 
         # Calculate and read-in distance-function.
