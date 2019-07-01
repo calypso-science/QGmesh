@@ -170,12 +170,12 @@ class GeoFile():
 
 
         ids = [id0] + [self.writePoint(x, lc) for x in pts[1:-1]] + [id1]
-
+        lids = [self.writeLine(ids)] 
         if group_name == 'Channels' or (grid_type=='quad' and group_name!='Islands'):
-            lids = [self.writeLine(ids)] 
+            
             self.geo.set_transfinite_lines([self.l[-1]], trans, progression=progression, bump=bump)
-        else:
-            lids = [self.writeLine((ids[i],ids[i+1])) for i in range(len(ids)-1)]
+        #elif :
+        #    lids = [self.writeLine((ids[i],ids[i+1])) for i in range(len(ids)-1)]
 
 
         if physical :

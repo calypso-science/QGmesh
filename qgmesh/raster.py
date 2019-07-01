@@ -115,7 +115,8 @@ class raster_calculator(QtWidgets.QDialog):
         root,f=os.path.split(shapein)
         shapeout=os.path.join(root,'wavelength.tif')
 
-        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="((%f*sqrt(tanh(4*pi**2.*A/%f**2/%f)))*(A>%f)+ (%f)*(A<=%f))" --NoDataValue=0' % (shapein,shapeout,x,t,g,d0,minL,d0))
+        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="%f*(A<=%f) + A*(A>%f)" --NoDataValue=-99'% (shapein,shapeout,d0,d0,d0))
+        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="%f*sqrt(tanh(4*pi**2.*A/%f**2/%f))" --NoDataValue=-99' % (shapeout,shapeout,x,t,g))
         add_raster(shapeout,'wavelength')
         self.close()
 
@@ -172,7 +173,7 @@ class raster_calculator(QtWidgets.QDialog):
         root,f=os.path.split(shapein)
         shapeout=os.path.join(root,'scaled.tif')
 
-        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="(((%f-%f)*(A-%f))/(%f-%f))+%f" --NoDataValue=%f' % (shapein,shapeout,Vmax,Vmin,min_raster,max_raster,min_raster,Vmin,Vmin))
+        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="((((%f-%f)*(A-%f))/(%f-%f))+%f)" --NoDataValue=-99' % (shapein,shapeout,Vmax,Vmin,min_raster,max_raster,min_raster,Vmin))
 
         add_raster(shapeout,'scaled')
         self.close()
