@@ -37,7 +37,7 @@ from .runGmsh import *
 import meshio
 
 from .mesh import Mesh
-from .tools import raster_calculator
+from .raster import raster_calculator
 
 class qgmesh:
     """QGIS Plugin Implementation."""
