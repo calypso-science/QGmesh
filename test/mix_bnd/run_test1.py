@@ -1,5 +1,5 @@
 import sys,os
-sys.path.append(os.path.join(os.path.dirname(__file__),'..','qgmesh')) 
+sys.path.append(os.path.join(os.path.dirname(__file__),'..','..','qgmesh')) 
 from qgis.core import (
      QgsApplication, 
      QgsProcessingFeedback, 
@@ -30,7 +30,7 @@ sys.path.append('/home/remy/.local/share/QGIS/QGIS3/profiles/default/processing/
 
 
 
-filename=os.path.join('/home/remy/Software/QGmesh/test/','easy_test_mix_bnd.qgz')
+filename=os.path.join('/home/remy/Software/QGmesh/test/mix_bnd/','easy_test_mix_bnd.qgz')
 print(filename)
 proj = QgsProject.instance()
 proj.read(filename)
@@ -48,7 +48,8 @@ crs=get_crs(projid)
 
     
 geo=GeoFile()
-for child in proj.layerTreeRoot().findGroups():      
+for child in proj.layerTreeRoot().findGroups(): 
+    print(child.name())     
 
     if child.name() in ['Boundaries','Islands','Channels']:
         grid_type='tetra'#child.customProperty('grid type')
@@ -70,7 +71,10 @@ for child in proj.layerTreeRoot().findGroups():
     		geo.add_sizing(layer,xform,child.name())
 
 
+with open('mix.geo', 'w') as f:
+    f.write(geo.geo.get_code() + '\n')
 
+f.close()
 
 
 
@@ -83,13 +87,15 @@ for child in proj.layerTreeRoot().findGroups():
 # sys.stdout = myStream
 
 # msh=main.exec_()
-msh=pygmsh.generate_mesh(geo.geo,extra_gmsh_arguments=['-2','-algo','front2d','-epslc1d','1e-3'])
+msh=pygmsh.generate_mesh(geo.geo,extra_gmsh_arguments=['-2'])
 
 mesh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cell_data=msh.cell_data,field_data=msh.field_data)
 
 mesh=Mesh(mesh)
+mesh.AddBathy(layer.dataProvider().dataSourceUri())
 
-mesh.writeShapefile('meshshape')
+self.mesh.writeUnstructuredGridSMS('fname.gr3')
+#mesh.writeShapefile('meshshape')
 #stri=mesh._build_string()
 #mesh.writeUnstructuredGridSMS('temp.sms')
 

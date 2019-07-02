@@ -39,6 +39,10 @@ import meshio
 from .mesh import Mesh
 from .raster import raster_calculator
 
+from qgis.gui import QgsMapLayerComboBox#, QgsFieldProxyModel#QgsMapLayerProxyModel
+
+from .tools import get_layer
+
 class qgmesh:
     """QGIS Plugin Implementation."""
 
@@ -264,9 +268,21 @@ class qgmesh:
 
         self.menu_mesh.addAction(mesh_it)
 
+        add_bathy=self.add_action(
+            icon_path,
+            text=self.tr(u'Add bathy'),
+            callback=self.add_bathy,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip="Add bathy to the mesh",
+            whats_this="This will add bathy to the mesh.")
+
+        self.menu_mesh.addAction(add_bathy)
+
         export_msh=self.add_action(
             icon_path,
-            text=self.tr(u'Export geometry'),
+            text=self.tr(u'Export Mesh'),
             callback=self.export_mesh,
             parent=self.iface.mainWindow(),
             add_to_toolbar=False,
@@ -517,7 +533,7 @@ class qgmesh:
         filetype=meshio.helpers.output_filetypes
         fileext=meshio.helpers._extension_to_filetype
         fileext = dict(map(reversed, fileext.items()))
-        fil=''
+        fil='GR3 (*.gr3);'
         for typ in filetype:
             if typ in fileext:
                 fil+=typ.upper()+' (*.'+fileext[typ]+');;'
@@ -528,12 +544,29 @@ class qgmesh:
         if fname=='':
             return
 
-        # if not fname.endswith('.msh'):
-        #     fname=fname+'.msh'
-
-        meshio.write(fname,self.mesh)
+        if not fname.endswith('.gr3'):
+            meshio.write(fname,self.mesh)
+        else:
+            self.mesh.writeUnstructuredGridSMS(fname)
 
         self.iface.messageBar().pushMessage("Info", "%s exported " % fname, level=Qgis.Info)
+
+
+    def add_bathy(self):
+        proj = QgsProject.instance()
+        raster=[]
+        for child in proj.layerTreeRoot().findLayers():   
+            layer = proj.mapLayer(child.layerId())     
+            if layer.type()==QgsMapLayer.RasterLayer:
+                raster.append(layer.name())
+
+        ex = raster_calculator(raster,'choose')
+        ex.show()
+        layer=ex.exec_()
+        
+        self.mesh.AddBathy(layer)
+
+        self.iface.messageBar().pushMessage("Info", "Bathy interpolated to the mesh " , level=Qgis.Info)
 
     def mesh_geofile(self):
 

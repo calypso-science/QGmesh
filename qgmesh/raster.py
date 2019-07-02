@@ -39,12 +39,19 @@ class raster_calculator(QtWidgets.QDialog):
             self.setWindowTitle(self.title)
             self.initDist(layout)
 
-
+        if funct_name=='choose':
+            self.title = 'Choose a raster'
+            self.setWindowTitle(self.title)
+            self.initChoose(layout)
 
         self.setMaximumHeight(10)
         self.resize(max(400, self.width()), self.height())
         self.show()
 
+    def initChoose(self,layout):
+        self.runLayout = CancelRunLayout(self,"Choose", self.choose_raster, layout)
+        self.runLayout.runButton.setEnabled(True)
+        self.setLayout(layout)
     def initDist(self,layout):
        
         layer = iface.activeLayer() # load the layer as you want
@@ -179,7 +186,19 @@ class raster_calculator(QtWidgets.QDialog):
         self.close()
         return
 
+
+    def choose_raster(self):
+        raster=self.rasterSelector.currentItem().text()
+        
+        layer=get_layer(raster)
+        shapein=layer.dataProvider().dataSourceUri()
+        self.close()
+
     def exec_(self):
 
-
         super(raster_calculator, self).exec_()
+        raster=self.rasterSelector.currentItem().text()
+        
+        layer=get_layer(raster)
+        shapein=layer.dataProvider().dataSourceUri()
+        return shapein 

@@ -2,9 +2,42 @@ import numpy as np
 from qgis.core import QgsWkbTypes,QgsVectorFileWriter,QgsMeshLayer,QgsProject,QgsField,QgsFields,QgsLayerTreeGroup,QgsCoordinateReferenceSystem,QgsPointXY,QgsFeature,QgsGeometry
 
 from PyQt5.QtCore import QThread
+import gdal
 
-
-
+def bilinear(px, py,gt,band_array, no_data=np.nan):
+    '''Bilinear interpolated point at (px, py) on band_array
+    example: bilinear(2790501.920, 6338905.159)'''
+    ny, nx = band_array.shape
+    # Half raster cell widths
+    hx = gt[1]/2.0
+    hy = gt[5]/2.0
+    # Calculate raster lower bound indices from point
+    fx = (px - (gt[0] + hx))/gt[1]
+    fy = (py - (gt[3] + hy))/gt[5]
+    ix1 = int(np.floor(fx))
+    iy1 = int(np.floor(fy))
+    # Special case where point is on upper bounds
+    if fx == float(nx - 1):
+        ix1 -= 1
+    if fy == float(ny - 1):
+        iy1 -= 1
+    # Upper bound indices on raster
+    ix2 = ix1 + 1
+    iy2 = iy1 + 1
+    # Test array bounds to ensure point is within raster midpoints
+    if (ix1 < 0) or (iy1 < 0) or (ix2 > nx - 1) or (iy2 > ny - 1):
+        return no_data
+    # Calculate differences from point to bounding raster midpoints
+    dx1 = px - (gt[0] + ix1*gt[1] + hx)
+    dy1 = py - (gt[3] + iy1*gt[5] + hy)
+    dx2 = (gt[0] + ix2*gt[1] + hx) - px
+    dy2 = (gt[3] + iy2*gt[5] + hy) - py
+    # Use the differences to weigh the four raster values
+    div = gt[1]*gt[5]
+    return (band_array[iy1,ix1]*dx2*dy2/div +
+            band_array[iy1,ix2]*dx1*dy2/div +
+            band_array[iy2,ix1]*dx2*dy1/div +
+            band_array[iy2,ix2]*dx1*dy1/div)
 
 class Mesh(object) :
 
@@ -135,6 +168,14 @@ class Mesh(object) :
             #     fileWriter.addFeature(newFeature)
 
         del fileWriter
+    def AddBathy(self, raster):
+        raster=gdal.Open(raster)
+        bathy=raster.GetRasterBand(1).ReadAsArray()
+        gt = raster.GetGeoTransform()
+        for pt in range(0,len(self.x)):
+            self.z[pt]=bilinear(self.x[pt],self.y[pt],gt,bathy, no_data=np.nan)
+
+
 
     def writeUnstructuredGridSMS(self, mesh):
         """
@@ -142,171 +183,29 @@ class Mesh(object) :
         writes out an SMS formatted grid file (mesh). The footer is largely static,
         but the elements, nodes and node strings are parsed from the input data.
 
-        Input data is probably best obtained from one of:
-
-            grid_tools.parseUnstructuredGridSMS()
-            grid_tools.parseUnstructuredGridFVCOM()
-            grid_tools.parseUnstructuredGridMIKE()
-
-        which read in the relevant grids and output the required information for
-        this function.
-
-        The footer contains meta data and additional information. See page 18 in
-        http://smstutorials-11.0.aquaveo.com/SMS_Gen2DM.pdf.
-
-        In essence, four bits are critical:
-            1. The header/footer MESH2D/BEGPARAMDEF
-            2. E3T prefix for the connectivity:
-                (elementID, node1, node2, node3, material_type)
-            3. ND prefix for the node information:
-                (nodeID, x, y, z)
-            4. NS prefix for the node strings which indicate the open boundaries.
-
-        As far as I can tell, the footer is largely irrelevant for FVCOM purposes.
-
-        Parameters
-        ----------
-        triangles : ndarray
-            Integer array of shape (ntri, 3). Each triangle is composed of
-            three points and this contains the three node numbers (stored in
-            nodes) which refer to the coordinates in X and Y (see below).
-        nodes : ndarray
-            Integer number assigned to each node.
-        x, y, z : ndarray
-            Coordinates of each grid node and any associated Z value.
-        types : ndarray
-            Classification for each open boundary. DHI MIKE21 .mesh format
-            requires unique IDs for each open boundary (with 0 and 1
-            reserved for land and sea nodes). Similar values can be used in
-            SMS grid files too.
-        mesh : str
-            Full path to the output file name.
-
-        """
-        triangles=self.triangles
-        nodes=self.nodes
+       """
+        triangles=self.triangles+1
         x=self.x
         y=self.y
         z=self.z
-        if self.types is None:
-            types=self.z
-        else:
-            types=self.types
-
-
 
 
         fileWrite = open(mesh, 'w')
         # Add a header
-        fileWrite.write('MESH2D\n')
+        fileWrite.write('hgrid create with QGmesh\n')
+        fileWrite.write('%i\t%i\n' % (len(self.triangles),len(self.x)))
 
         # Write out the connectivity table (triangles)
-        currentNode = 0
-        for line in triangles:
+        for node in range(0,len(self.x)):
+            fileWrite.write('%i\t%f\t%f\t%f\t\n'% (node+1,self.x[node],self.y[node],self.z[node]))
 
-            # Bump the numbers by one to correct for Python indexing from zero
-            line = line + 1
-            strLine = []
-            # Convert the numpy array to a string array
-            for value in line:
-                strLine.append(str(value))
-
-            currentNode+=1
-            # Build the output string for the connectivity table
-            if value==0:
-                output = ['E3T'] + [str(currentNode)] + strLine[0:-1] + ['1']
+        for face in range(0,len(self.triangles)):
+            if self.triangles[face,-1]<0:
+                fileWrite.write('%i\t3\t%i\t%i\t%i\t0\n' % (face ,triangles[face,0],triangles[face,1],triangles[face,2]))
             else:
-                output = ['E4Q'] + [str(currentNode)] + strLine + ['1']
+                fileWrite.write('%i\t4\t%i\t%i\t%i\t%i\n' % (face ,triangles[face,0],triangles[face,1],triangles[face,2],triangles[face,3]))
 
-            output = ' '.join(output)
-            #print output
 
-            fileWrite.write(output + '\n')
 
-        # Add the node information (nodes)
-        for count, line in enumerate(nodes):
-
-            # Convert the numpy array to a string array
-            strLine = str(line)
-
-            # Format output correctly
-            output = ['ND'] + \
-                    [strLine] + \
-                    ['{:.8e}'.format(x[count])] + \
-                    ['{:.8e}'.format(y[count])] + \
-                    ['{:.8e}'.format(z[count])]
-            output = ' '.join(output)
-
-            fileWrite.write(output + '\n')
-
-        # Convert MIKE boundary types to node strings. The format requires a prefix
-        # NS, and then a maximum of 10 node IDs per line. The node string tail is
-        # indicated by a negative node ID.
-
-        # Iterate through the unique boundary types to get a new node string for
-        # each boundary type (ignore types of less than 2 which are not open
-        # boundaries in MIKE).
-        for boundaryType in np.unique(types[types>1]):
-
-            # Find the nodes for the boundary type which are greater than 1 (i.e.
-            # not 0 or 1).
-            nodeBoundaries = nodes[types==boundaryType]
-
-            nodeStrings = 0
-            for counter, node in enumerate(nodeBoundaries):
-                if counter+1 == len(nodeBoundaries) and node > 0:
-                    node = -node
-
-                nodeStrings += 1
-                if nodeStrings == 1:
-                    output = 'NS  {:d} '.format(int(node))
-                    fileWrite.write(output)
-                elif nodeStrings != 0 and nodeStrings < 10:
-                    output = '{:d} '.format(int(node))
-                    fileWrite.write(output)
-                elif nodeStrings == 10:
-                    output = '{:d} '.format(int(node))
-                    fileWrite.write(output + '\n')
-                    nodeStrings = 0
-
-            # Add a new line at the end of each block. Not sure why the new line
-            # above doesn't work...
-            fileWrite.write('\n')
-
-        # Add all the blurb at the end of the file.
-        #
-        # BEGPARAMDEF = Marks end of mesh data/beginning of mesh model definition
-        # GM = Mesh name (enclosed in "")
-        # SI = use SI units y/n = 1/0
-        # DY = Dynamic model y/n = 1/0
-        # TU = Time units
-        # TD = Dynamic time data (?)
-        # NUME = Number of entities available (nodes, node strings, elements)
-        # BGPGC = Boundary group parameter group correlation y/n = 1/0
-        # BEDISP/BEFONT = Format controls on display of boundary labels.
-        # ENDPARAMDEF = End of the mesh model definition
-        # BEG2DMBC = Beginning of the model assignments
-        # MAT = Material assignment
-        # END2DMBC = End of the model assignments
-        footer = 'BEGPARAMDEF\n\
-    GM  "Mesh"\n\
-    SI  0\n\
-    DY  0\n\
-    TU  ""\n\
-    TD  0  0\n\
-    NUME  3\n\
-    BCPGC  0\n\
-    BEDISP  0 0 0 0 1 0 1 0 0 0 0 1\n\
-    BEFONT  0 2\n\
-    BEDISP  1 0 0 0 1 0 1 0 0 0 0 1\n\
-    BEFONT  1 2\n\
-    BEDISP  2 0 0 0 1 0 1 0 0 0 0 1\n\
-    BEFONT  2 2\n\
-    ENDPARAMDEF\n\
-    BEG2DMBC\n\
-    MAT  1 "material 01"\n\
-    END2DMBC\n'
-
-        fileWrite.write(footer)
 
         fileWrite.close()

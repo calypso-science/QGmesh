@@ -57,6 +57,8 @@ class GeoFile():
         self.geo= pygmsh.built_in.Geometry()
         self.ip = 0
         self.p=[]
+        self.Xpts=[]
+        self.Ypts=[]
         self.il = 0
         self.l=[]
         self.ill = 0
@@ -86,10 +88,24 @@ class GeoFile():
 
     def writePoint(self, pt, lc) :
 
-        self.p.append(self.geo.add_point([pt[0],pt[1], 0.],lcar=lc))
-        self.ip += 1
+        if len(self.Xpts)>0:
+            if pt[0] in self.Xpts and pt[1] in self.Ypts:
+                matches = [x for x in range(0,len(self.Xpts)) if self.Xpts[x] ==pt[0] and self.Ypts[x] == pt[1]]
+                return matches[0]
+                
+            else:
+                self.p.append(self.geo.add_point([pt[0],pt[1], 0.],lcar=lc))
+                self.Xpts.append(self.p[-1].x[0])
+                self.Ypts.append(self.p[-1].x[1])
+                self.ip += 1
+                return self.ip - 1
+        else:
+            self.p.append(self.geo.add_point([pt[0],pt[1], 0.],lcar=lc))
+            self.Xpts.append(self.p[-1].x[0])
+            self.Ypts.append(self.p[-1].x[1])
+            self.ip += 1
 
-        return self.ip - 1
+            return self.ip - 1
 
     def writePointCheckLineLoops(self, pt, lc) :
         for ll in self.lineloops :
@@ -170,6 +186,7 @@ class GeoFile():
 
 
         ids = [id0] + [self.writePoint(x, lc) for x in pts[1:-1]] + [id1]
+
         lids = [self.writeLine(ids)] 
         if group_name == 'Channels' or (grid_type=='quad' and group_name!='Islands'):
             
