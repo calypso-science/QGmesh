@@ -1,0 +1,12 @@
+Run begins at 20190702, 213526.380
+ You are using baroclinic model
+ # of tracers in each module:           1           1           0           0
+           0           0           0           0           0           0
+ Total # of tracers=           2
+ Index ranges of each module:           1           1           2           2
+           3           2           3           2           3           2
+           3           2           3           2           3           2
+           3           2           3           2
+ # of global outputs=          27
+ done reading param.in; s2_mxnbt in param.in =   3.50000000000000     
+ lhas_quad= T
