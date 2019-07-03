@@ -9,13 +9,21 @@ from qgis.core import (
      QgsMeshLayer,
 )
 
-from exportGeometry import GeoFile
+#from exportGeometry import GeoFile
 from utils import get_crs
 import runGmsh
 from mesh import Mesh
 import meshio
 import pygmsh
 
+
+
+mesh=meshio.read('/home/remy/Software/QGmesh/test/mix_bnd/grid.msh')
+mesh=Mesh(mesh)
+#mesh.AddBathy(layer.dataProvider().dataSourceUri())
+mesh.writeUnstructuredGridSMS('fname2.gr3')
+
+import pdb;pdb.set_trace()
 # See https://gis.stackexchange.com/a/155852/4972 for details about the prefix 
 QgsApplication.setPrefixPath('/usr', True)
 qgs = QgsApplication([], False)
@@ -60,7 +68,7 @@ for child in proj.layerTreeRoot().findGroups():
 
 
 
-
+geo.write_physical()
 geo.writeSurface(grid_type)
 
 for child in proj.layerTreeRoot().findGroups():      
@@ -93,8 +101,9 @@ mesh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cel
 
 mesh=Mesh(mesh)
 mesh.AddBathy(layer.dataProvider().dataSourceUri())
+import pdb;pdb.set_trace()
 
-self.mesh.writeUnstructuredGridSMS('fname.gr3')
+mesh.writeUnstructuredGridSMS('fname2.gr3')
 #mesh.writeShapefile('meshshape')
 #stri=mesh._build_string()
 #mesh.writeUnstructuredGridSMS('temp.sms')

@@ -153,15 +153,25 @@ class GeoFile():
                     sf=self.geo.add_plane_surface(self.ll[x])
                     self.geo. set_transfinite_surface(sf)
                     self.geo.add_raw_code('Recombine Surface {%s};' % sf.id)
+                    self.geo.add_raw_code('Physical Surface("%s") = {%s};' % (sf.id,sf.id))
 
 
         sf=self.geo.add_plane_surface(domain,holes=holes)
+        self.geo.add_raw_code('Physical Surface("%s") = {%s};' % (sf.id,sf.id))
+
         if transfinite =='True':
             ids=self.get_corner(sf)
             self.geo.add_raw_code('Transfinite Surface{%s} = {%s};' %(sf.id,','.join(ids)))
 
         if grid_type=='quad':
             self.geo.add_raw_code('Recombine Surface {%s};' % sf.id)
+
+    def write_physical(self):
+
+        for physical in self.physicals.keys():
+            ll=self.physicals[physical]
+            ids=[self.l[x].id for x in ll]
+            self.geo.add_raw_code('Physical Curve("%s") = {%s};' % (physical,','.join(ids)))
 
 
     def addLineFromCoords(self, pts, xform, lc, physical,group_name,trans=None,bump=None,progression=None,grid_type='tetra') :
@@ -197,6 +207,7 @@ class GeoFile():
 
         if physical :
             for lid in lids :
+                
                 if physical in self.physicals :
                     self.physicals[physical].append(lid)
                 else :

@@ -21,8 +21,9 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt5.QtCore import QSettings, QTranslator, qVersion, QCoreApplication,QVariant
+from PyQt5.QtCore import QSettings, QTranslator, qVersion, QCoreApplication,QVariant,QThread
 from PyQt5.QtGui import QIcon
+
 from PyQt5.QtWidgets import QAction,QFileDialog,QMenu,QApplication
 
 from qgis.core import QgsMapLayer,QgsProject,QgsLayerTreeGroup,Qgis,QgsCoordinateTransform,QgsWkbTypes,QgsVectorLayer,QgsField
@@ -496,6 +497,8 @@ class qgmesh:
 
         self.geo.writeSurface(grid_type,transfinite)
 
+        self.geo.write_physical()
+
         for child in proj.layerTreeRoot().findGroups():      
             if child.name() in ['Sizing']:
                 for sub_subChild in child.children():
@@ -582,8 +585,21 @@ class qgmesh:
         msh=main.exec_()
         msh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cell_data=msh.cell_data,field_data=msh.field_data)
         self.mesh=Mesh(msh)
-        self.mesh.to_Gridshapefile('new_grid')
-        self.mesh.writeShapefile('/tmp/new_grid','points')
+        G=self.mesh.to_Gridshapefile('new_grid')
+        self.mesh.writeShapefile('/tmp/new_grid_point','points')
+
+        QThread.sleep(1)
+        vlayer = QgsVectorLayer('/tmp/new_grid_point.shp', "Nodes", "ogr")
+        QgsProject.instance().addMapLayer(vlayer,False)
+        G.addLayer(vlayer)
+
+        for physical in self.mesh.physical.keys():
+            if any(self.mesh.physicalID==self.mesh.physical[physical][0]):
+                self.mesh.writeShapefile('/tmp/new_grid_bnd_'+physical,'edges',physical=self.mesh.physical[physical][0])
+                vlayer = QgsVectorLayer('/tmp/new_grid_bnd_'+physical+'.shp', physical, "ogr")
+                QgsProject.instance().addMapLayer(vlayer,False)
+                G.addLayer(vlayer)
+       
 
 
     def to_wavelength(self):
