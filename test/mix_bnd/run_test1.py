@@ -18,8 +18,10 @@ import pygmsh
 
 
 
-mesh=meshio.read('/home/remy/Software/QGmesh/test/mix_bnd/grid.msh')
+mesh=meshio.read('/home/remy/Software/QGmesh/test/mix_bnd/mix2.msh')
+
 mesh=Mesh(mesh)
+mesh.get_CFL(15)
 #mesh.AddBathy(layer.dataProvider().dataSourceUri())
 mesh.writeUnstructuredGridSMS('fname2.gr3')
 

@@ -77,6 +77,7 @@ Transfinite Surface {s2};
 Recombine Surface {s2};
 s3 = news;
 Plane Surface(s3) = {ll2,ll3};
+Physical Surface("s2") = {s2};
 Physical Surface("s3") = {s3};
 Physical Curve("coast") = {l8,l11,l13,l14};
 Physical Curve("ocean") = {l10};
