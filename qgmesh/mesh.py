@@ -4,6 +4,7 @@ from qgis.core import QgsPoint,QgsWkbTypes,QgsVectorFileWriter,QgsMeshLayer,QgsP
 from PyQt5.QtCore import QThread
 import gdal
 from collections import OrderedDict
+import numpy as np
 
 def bilinear(px, py,gt,band_array, no_data=np.nan):
     '''Bilinear interpolated point at (px, py) on band_array
@@ -40,6 +41,14 @@ def bilinear(px, py,gt,band_array, no_data=np.nan):
             band_array[iy2,ix1]*dx2*dy1/div +
             band_array[iy2,ix2]*dx1*dy1/div)
 
+def cal_tri_area(a):
+    return np.absolute((a[0]*(a[3]-a[5])+a[2]*(a[5]-a[1])+a[4]*(a[1]-a[3]))/2.0)
+
+     
+def calculate_CFL(depth,A,dt):
+    CFL=np.sqrt(np.pi*9.8*depth/(4*A))*dt
+    return CFL
+
 class Mesh(object) :
 
     def __init__(self,mesh) :
@@ -50,7 +59,7 @@ class Mesh(object) :
         self.y=mesh.points[:,1]
         self.z=mesh.points[:,2]
         self.physical=mesh.field_data
-        self.physicalID=mesh.cell_data['line']['gmsh:physical']
+        
 
         self.nodes=np.arange(1,len(self.x)+1)
         self.triangles=mesh.cells
@@ -71,10 +80,23 @@ class Mesh(object) :
         self.triangles=np.ones((tot,4),int)*-1
 
         self.edges=[]
-        for edge in mesh.cells['line']:
+        tmp=[]
+        
+        for ie,edge in enumerate(mesh.cells['line']):
             self.edges.append(edge[0])
             self.edges.append(edge[1])
-        self.edges=np.array(list(OrderedDict.fromkeys(self.edges)))
+            tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
+            tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
+
+        
+
+        unique_edges=np.array(list(OrderedDict.fromkeys(self.edges)))
+        self.physicalID=[]
+        for x in unique_edges:
+            self.physicalID.append(tmp[self.edges.index(x)])
+
+
+        self.edges=unique_edges.copy()
 
         if 'triangle' in mesh.cells:
             self.triangles[0:tri_len,0:3]=mesh.cells['triangle']
@@ -187,6 +209,7 @@ class Mesh(object) :
 
 
     def remove_hanging_nodes(self):
+
         unique_nodes=np.unique(self.triangles+1)
         unique_nodes=unique_nodes[unique_nodes!=0]
 
@@ -220,15 +243,15 @@ class Mesh(object) :
                 node_removed+=1
 
 
-        triangles[np.isnan(triangles)]=-1
-        self.triangles=triangles.astype('int64')
-        
-        self.physicalID=np.asarray([self.physicalID[x] for x in range(0,len(edges)) if str(edges[x]) != 'nan'])
-        self.edges=np.asarray([x for x in edges if str(x) != 'nan'])
-        self.edges=self.edges.astype('int64')
-        self.x=np.asarray([x for x in X if str(x) != 'nan'])
-        self.y=np.asarray([x for x in Y if str(x) != 'nan'])
-        self.z=np.asarray([x for x in Z if str(x) != 'nan'])
+            triangles[np.isnan(triangles)]=-1
+            self.triangles=triangles.astype('int64')
+            
+            self.physicalID=np.asarray([self.physicalID[x] for x in range(0,len(edges)) if str(edges[x]) != 'nan'])
+            self.edges=np.asarray([x for x in edges if str(x) != 'nan'])
+            self.edges=self.edges.astype('int64')
+            self.x=np.asarray([x for x in X if str(x) != 'nan'])
+            self.y=np.asarray([x for x in Y if str(x) != 'nan'])
+            self.z=np.asarray([x for x in Z if str(x) != 'nan'])
 
         
      
@@ -264,7 +287,6 @@ class Mesh(object) :
                 fileWrite.write('%i\t3\t%i\t%i\t%i\t0\n' % (face+1 ,triangles[face,0],triangles[face,1],triangles[face,2]))
             else:
                 fileWrite.write('%i\t4\t%i\t%i\t%i\t%i\n' % (face+1 ,triangles[face,0],triangles[face,1],triangles[face,2],triangles[face,3]))
-
 
 
 
@@ -364,3 +386,45 @@ class Mesh(object) :
 
 
         fileWrite.close()
+
+    def map_np2ne(self,D):
+        elem=self.triangles
+        idx3    = elem[:,-1]<0
+        idx4    = quad=~idx3
+
+        De = np.zeros((elem.shape[0],))
+        De[idx3] = (D[elem[idx3,0]]+D[elem[idx3,1]]+D[elem[idx3,2]])/3
+        De[idx4] = (D[elem[idx4,0]]+D[elem[idx4,1]]+D[elem[idx4,2]]+D[elem[idx4,3]])/4
+
+        return De
+    
+
+
+    def get_areas(self):
+        x=self.x
+        y=self.y
+        Elems=range(0,len(self.triangles))
+        ref=np.zeros((len(x),1))
+
+        nodes_coor = np.hstack((np.vstack([x,y]).T,ref))
+        #populate (x,y) and elevation information for each triangular element
+        tri = np.zeros((len(Elems),3,3))
+        for itri in range(len(Elems)):
+            for ivert in range(3):
+                tri[itri,ivert,:] = nodes_coor[self.triangles[Elems[itri]][ivert]] 
+
+        areas = cal_tri_area(tri[:,:,0:2].reshape(len(Elems),6).transpose())
+        return areas
+
+
+    def get_CFL(self,dt):
+        X=self.x
+        Y=self.y
+        D=self.z
+        ele = self.triangles
+        De=self.map_np2ne(D)
+        De[np.where(De<0.1)]=0.1
+        areas=self.get_areas()
+        CFL=calculate_CFL(De,areas,dt)
+
+        return CFL

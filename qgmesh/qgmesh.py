@@ -39,10 +39,11 @@ import meshio
 
 from .mesh import Mesh
 from .raster import raster_calculator
+from .cfl_inputs import CFL_calculator
 
 from qgis.gui import QgsMapLayerComboBox#, QgsFieldProxyModel#QgsMapLayerProxyModel
 
-from .tools import get_layer
+from .tools import *
 
 class qgmesh:
     """QGIS Plugin Implementation."""
@@ -317,6 +318,18 @@ class qgmesh:
 
         self.menu_mesh.addAction(export_msh)
 
+        get_CFL=self.add_action(
+            icon_path,
+            text=self.tr(u'Display CFL'),
+            callback=self.get_CFL,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip="Calculate CFL",
+            whats_this="This will calculate and display the CFL number.")
+
+        self.menu_mesh.addAction(get_CFL)
+
 
         self.menu.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.menu_mesh)
 
@@ -486,6 +499,16 @@ class qgmesh:
         ex = raster_calculator(raster,'distance')
         ex.show()
         ex.exec_() 
+
+   
+
+    def get_CFL(self):
+        ex = CFL_calculator()
+        ex.show()
+        dt,min_CFL,warn_CFL=ex.exec_()
+        
+        CFL=self.mesh.get_CFL(dt)
+
 
 
 
@@ -663,7 +686,6 @@ class qgmesh:
 
 
 
-
         childs=[]
         for child in proj.layerTreeRoot().children():
             if isinstance(child, QgsLayerTreeGroup):
@@ -700,3 +722,4 @@ class qgmesh:
 
             else:
                 exists_already.append(group)
+

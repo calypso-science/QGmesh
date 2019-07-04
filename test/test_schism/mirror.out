@@ -1,4 +1,4 @@
-Run begins at 20190703, 164039.493
+Run begins at 20190703, 222901.423
  You are using baroclinic model
  # of tracers in each module:           1           1           0           0
            0           0           0           0           0           0
@@ -9,4 +9,6 @@ Run begins at 20190703, 164039.493
            3           2           3           2
  # of global outputs=          27
  done reading param.in; s2_mxnbt in param.in =   3.50000000000000     
- lhas_quad= F
+ lhas_quad= T
+
+Global Grid Size (ne,np,ns,nvrt):       2271      1242      3512        37
