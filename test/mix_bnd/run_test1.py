@@ -15,17 +15,47 @@ import runGmsh
 from mesh import Mesh
 import meshio
 import pygmsh
-
-
+from netCDF4 import Dataset
+import numpy as np
 
 mesh=meshio.read('/home/remy/Software/QGmesh/test/mix_bnd/mix2.msh')
 
 mesh=Mesh(mesh)
-mesh.get_CFL(15)
+CF=mesh.get_CFL(15)
+root_grp = Dataset('cfl.nc', 'w', format='NETCDF4',clobber=True)
+root_grp.Conventions = 'CF-1.0, UGRID-1.0'
+# dimensions
+
+
+
+root_grp.createDimension('time', 1)
+root_grp.createDimension('nSCHISM_hgrid_node', len(mesh.x))
+root_grp.createDimension('nSCHISM_hgrid_face', len(mesh.triangles))
+root_grp.createDimension('nMaxSCHISM_hgrid_face_nodes', 4)
+times = root_grp.createVariable('time', 'f8', ('time',))
+latitudes = root_grp.createVariable('SCHISM_hgrid_node_y', 'f4', ('nSCHISM_hgrid_node',))
+longitudes = root_grp.createVariable('SCHISM_hgrid_node_x', 'f4', ('nSCHISM_hgrid_node',))
+faces = root_grp.createVariable('SCHISM_hgrid_face_nodes', 'f4', ('nSCHISM_hgrid_face','nMaxSCHISM_hgrid_face_nodes'))
+cfl = root_grp.createVariable('cfl', 'f4', ('nSCHISM_hgrid_node',))
+times[:]=0
+latitudes[:]=mesh.y
+longitudes[:]=mesh.x
+tri=mesh.triangles[:,-1]==-1
+faces[tri,0:3]=mesh.triangles[tri,0:3]+1
+quad=mesh.triangles[:,-1]>=0
+faces[quad,:]=mesh.triangles[quad,:]+1
+Z=np.zeros((len(mesh.x)))
+for i in range(0,len(CF)):
+    Z[mesh.triangles[i]]=CF[i]
+cfl[:]=Z
+root_grp.close()
+os.system('ncks -O --fl_fmt=classic cfl.nc cfl.nc')
+
+import pdb;pdb.set_trace()
 #mesh.AddBathy(layer.dataProvider().dataSourceUri())
 mesh.writeUnstructuredGridSMS('fname2.gr3')
 
-import pdb;pdb.set_trace()
+
 # See https://gis.stackexchange.com/a/155852/4972 for details about the prefix 
 QgsApplication.setPrefixPath('/usr', True)
 qgs = QgsApplication([], False)
