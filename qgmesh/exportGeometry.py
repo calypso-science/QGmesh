@@ -132,7 +132,7 @@ class GeoFile():
         self.ill += 1
         return self.ill - 1
 
-    def writeSurface(self,grid_type,transfinite=False) :
+    def writeSurface(self,grid_type) :
 
         holes=[]
         domain=[]
@@ -147,7 +147,7 @@ class GeoFile():
                 domain=self.ll[self.physicals_ll[physical][0]]
 
 
-            if physical=='Channels' and grid_type is not 'quad':
+            if physical=='Channels': #and grid_type is not 'quad':
                 for x in set(self.physicals_ll[physical]):
                     channel.append(self.ll[x])
                     sf=self.geo.add_plane_surface(self.ll[x])
@@ -159,9 +159,10 @@ class GeoFile():
         sf=self.geo.add_plane_surface(domain,holes=holes)
         self.geo.add_raw_code('Physical Surface("%s") = {%s};' % (sf.id,sf.id))
 
-        if transfinite =='True':
+        if grid_type =='transfinite':
             ids=self.get_corner(sf)
             self.geo.add_raw_code('Transfinite Surface{%s} = {%s};' %(sf.id,','.join(ids)))
+            self.geo.add_raw_code('Recombine Surface {%s};' % sf.id)
 
         if grid_type=='quad':
             self.geo.add_raw_code('Recombine Surface {%s};' % sf.id)
@@ -198,8 +199,7 @@ class GeoFile():
         ids = [id0] + [self.writePoint(x, lc) for x in pts[1:-1]] + [id1]
 
         lids = [self.writeLine(ids)] 
-        if group_name == 'Channels' or (grid_type=='quad' and group_name!='Islands'):
-            
+        if group_name == 'Channels' or grid_type=='transfinite':
             self.geo.set_transfinite_lines([self.l[-1]], trans, progression=progression, bump=bump)
         #elif :
         #    lids = [self.writeLine((ids[i],ids[i+1])) for i in range(len(ids)-1)]
@@ -302,7 +302,7 @@ class GeoFile():
 
 
             elif geom.type() == QgsWkbTypes.PointGeometry :
-                if name=='corners':
+                if group_name=='Corners':
                     self.corners.append(geom.asPoint())
                 else:
                     print ('asPoint()')

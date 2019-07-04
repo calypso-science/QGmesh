@@ -191,10 +191,22 @@ class qgmesh:
         self.menu_init.setObjectName("Initializing")
         self.menu_init.setTitle("Initializing")
 
+        reload_data=self.add_action(
+            icon_path,
+            text=self.tr(u'Reload saved data'),
+            callback=self.reload_data,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip="Reload all saved data.",
+            whats_this="Reload all saved data.")
+
+        self.menu_init.addAction(reload_data)
+
 
         init_fold_tetra=self.add_action(
             icon_path,
-            text=self.tr(u'Finite elements'),
+            text=self.tr(u'Finite'),
             callback=self.initialize_folders_tetra,
             parent=self.iface.mainWindow(),
             add_to_toolbar=False,
@@ -206,7 +218,7 @@ class qgmesh:
 
         init_fold_quad=self.add_action(
             icon_path,
-            text=self.tr(u'Quad elements'),
+            text=self.tr(u'Quad'),
             callback=self.initialize_folders_quad,
             parent=self.iface.mainWindow(),
             add_to_toolbar=False,
@@ -215,6 +227,18 @@ class qgmesh:
             whats_this="Generate folders: \n Boundaries, Channel. Islands  \n which are needed to run QGmsh.")
 
         self.menu_init.addAction(init_fold_quad)
+
+        init_fold_trans=self.add_action(
+            icon_path,
+            text=self.tr(u'Transfinite'),
+            callback=self.initialize_folders_transfinite,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip="Generate each folder needed by QGmsh.",
+            whats_this="Generate folders: \n Boundaries, Channel. Islands  \n which are needed to run QGmsh.")
+
+        self.menu_init.addAction(init_fold_trans)
 
         self.menu.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.menu_init)
 
@@ -388,6 +412,7 @@ class qgmesh:
                 action)
             self.iface.removeToolBarIcon(action)
 
+        
     def add_sizing_ball(self):
         inLayerGeometryType = ['Point','Line','Polygon'][QgsWkbTypes.PointGeometry]
         proj = QgsProject.instance()
@@ -423,111 +448,46 @@ class qgmesh:
 
         proj.addMapLayer(outLayer)
 
-    def initialize_folders_tetra(self):
-        """Run method that performs all the real work"""
-        # See if OK was pressed
-        groups=['Boundaries','Channels','Islands','Sizing']
+
+
+
+    def to_wavelength(self):
         proj = QgsProject.instance()
+        raster=[]
+        for child in proj.layerTreeRoot().findLayers():   
+            layer = proj.mapLayer(child.layerId())     
+            if layer.type()==QgsMapLayer.RasterLayer:
+                raster.append(layer.name())
 
+        ex = raster_calculator(raster,'wavelength')
+        ex.show()
+        ex.exec_()
 
-
-
-        childs=[]
-        for child in proj.layerTreeRoot().children():
-            if isinstance(child, QgsLayerTreeGroup):
-                childs.append(child.name())
-
-        exists_already=[]
-        for group in groups:
-            if group not in childs:
-                
-                gr=proj.layerTreeRoot().addGroup(group)
-                gr.setCustomProperty('grid type','tetra')
-            else:
-                exists_already.append(group)
-
-        #if len(exists_already)>1:
-        #    self.iface.messageBar().pushMessage("Error", "layer(s): %s already exists" % ','.join(exists_already), level=Qgis.Warning)
-    def initialize_folders_quad(self):
-        """Run method that performs all the real work"""
-        # See if OK was pressed
-        groups=['Boundaries','Islands','Sizing']
+    def to_scale(self):
         proj = QgsProject.instance()
+        raster=[]
+        for child in proj.layerTreeRoot().findLayers():   
+            layer = proj.mapLayer(child.layerId())     
+            if layer.type()==QgsMapLayer.RasterLayer:
+                raster.append(layer.name())
 
+        ex = raster_calculator(raster,'scale')
+        ex.show()
+        ex.exec_()
 
-
-
-        childs=[]
-        for child in proj.layerTreeRoot().children():
-            if isinstance(child, QgsLayerTreeGroup):
-                childs.append(child.name())
-
-        exists_already=[]
-        for group in groups:
-            if group not in childs:
-                gr=proj.layerTreeRoot().addGroup(group)
-                gr.setCustomProperty('grid type','quad')
-
-            else:
-                exists_already.append(group)
-
-        #if len(exists_already)>1:
-        #    self.iface.messageBar().pushMessage("Error", "layer(s): %s already exists" % ','.join(exists_already), level=Qgis.Warning)
-
-
-    def update_geofile(self):
+    def to_dist(self):
         proj = QgsProject.instance()
-        crs=proj.crs()
-        self.geo=GeoFile()
-        added=[]
-        transfinite=False
-        for child in proj.layerTreeRoot().findGroups():        
-            if child.name() in ['Boundaries','Islands','Channels']:
-                grid_type=child.customProperty('grid type')
-                if child.name()=='Boundaries':
-                    transfinite=child.customProperty('wmsTitle')
-                for sub_subChild in child.children():
-                    layer = proj.mapLayer(sub_subChild.layerId())
-                    xform = QgsCoordinateTransform(layer.crs(), crs,proj)
-                    self.geo.add_layer(layer,xform,child.name(),grid_type)
-                    added.append(child.name())
-        
-        if len(added)>0:
-            self.iface.messageBar().pushMessage("Info", "layer(s): %s added to Geometry" % ','.join(added), level=Qgis.Info)
+        raster=[]
+        for child in proj.layerTreeRoot().findLayers():   
+            layer = proj.mapLayer(child.layerId())     
+            if layer.type()!=QgsMapLayer.RasterLayer:
+                raster.append(layer.name())
 
-        self.geo.writeSurface(grid_type,transfinite)
-
-        self.geo.write_physical()
-
-        for child in proj.layerTreeRoot().findGroups():      
-            if child.name() in ['Sizing']:
-                for sub_subChild in child.children():
-                    layer = proj.mapLayer(sub_subChild.layerId())
-                    xform = QgsCoordinateTransform(layer.crs(), crs,proj)
-                    self.geo.add_sizing(layer,xform,child.name())
-
-        if len(self.geo.Field)>0:
-            self.geo.geo.add_background_field(self.geo.Field,aggregation_type='Min')
+        ex = raster_calculator(raster,'distance')
+        ex.show()
+        ex.exec_() 
 
 
-    def export_geofile(self):
-        self.update_geofile()
-        qfd = QFileDialog()
-        path = ""
-        fil = "geo(*.geo)"
-        fname = QFileDialog.getSaveFileName(qfd, 'exprt Geo file', path, fil)
-        fname=fname[0]
-        if fname=='':
-            return
-
-        if not fname.endswith('.geo'):
-            fname=fname+'.geo'
-
-        with open(fname, 'w') as f:
-            f.write(self.geo.geo.get_code() + '\n')
-
-        f.close()
-        self.iface.messageBar().pushMessage("Info", "%s exported " % fname, level=Qgis.Info)
 
     def export_mesh(self):
         qfd = QFileDialog()
@@ -584,6 +544,14 @@ class qgmesh:
 
         msh=main.exec_()
         msh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cell_data=msh.cell_data,field_data=msh.field_data)
+        
+        path_absolute = QgsProject.instance().readPath('./')
+        mesh_out=os.path.join(path_absolute,'new_grid.msh')
+        meshio.write(mesh_out,msh)
+
+        proj = QgsProject.instance()
+        proj.writeEntry("QGmsh", "mesh_file", mesh_out)
+
         self.mesh=Mesh(msh)
         G=self.mesh.to_Gridshapefile('new_grid')
         self.mesh.writeShapefile('/tmp/new_grid_point','points')
@@ -600,40 +568,135 @@ class qgmesh:
                 QgsProject.instance().addMapLayer(vlayer,False)
                 G.addLayer(vlayer)
        
-
-
-    def to_wavelength(self):
+    def update_geofile(self):
         proj = QgsProject.instance()
-        raster=[]
-        for child in proj.layerTreeRoot().findLayers():   
-            layer = proj.mapLayer(child.layerId())     
-            if layer.type()==QgsMapLayer.RasterLayer:
-                raster.append(layer.name())
+        crs=proj.crs()
+        self.geo=GeoFile()
+        added=[]
 
-        ex = raster_calculator(raster,'wavelength')
-        ex.show()
-        ex.exec_()
+        for child in proj.layerTreeRoot().findGroups():        
+            if child.name() in ['Boundaries','Islands','Channels','Corners']:
+                grid_type=child.customProperty('grid type')
+                for sub_subChild in child.children():
+                    layer = proj.mapLayer(sub_subChild.layerId())
+                    xform = QgsCoordinateTransform(layer.crs(), crs,proj)
+                    self.geo.add_layer(layer,xform,child.name(),grid_type)
+                    added.append(child.name())
+        
+        if len(added)>0:
+            self.iface.messageBar().pushMessage("Info", "layer(s): %s added to Geometry" % ','.join(added), level=Qgis.Info)
 
-    def to_scale(self):
+        self.geo.writeSurface(grid_type)
+
+        self.geo.write_physical()
+
+        for child in proj.layerTreeRoot().findGroups():      
+            if child.name() in ['Sizing']:
+                for sub_subChild in child.children():
+                    layer = proj.mapLayer(sub_subChild.layerId())
+                    xform = QgsCoordinateTransform(layer.crs(), crs,proj)
+                    self.geo.add_sizing(layer,xform,child.name())
+
+        if len(self.geo.Field)>0:
+            self.geo.geo.add_background_field(self.geo.Field,aggregation_type='Min')
+
+
+    def export_geofile(self):
+        self.update_geofile()
+        qfd = QFileDialog()
+        path = ""
+        fil = "geo(*.geo)"
+        fname = QFileDialog.getSaveFileName(qfd, 'exprt Geo file', path, fil)
+        fname=fname[0]
+        if fname=='':
+            return
+
+        if not fname.endswith('.geo'):
+            fname=fname+'.geo'
+
+        with open(fname, 'w') as f:
+            f.write(self.geo.geo.get_code() + '\n')
+
+        f.close()
+        self.iface.messageBar().pushMessage("Info", "%s exported " % fname, level=Qgis.Info)
+
+    def reload_data(self):
         proj = QgsProject.instance()
-        raster=[]
-        for child in proj.layerTreeRoot().findLayers():   
-            layer = proj.mapLayer(child.layerId())     
-            if layer.type()==QgsMapLayer.RasterLayer:
-                raster.append(layer.name())
+        mesh_out=proj.readEntry("QGmsh", "mesh_file", "")[0]
+        if len(mesh_out)>0:
+            msh=meshio.read(mesh_out)
+            self.mesh=Mesh(msh)
+            G=self.mesh.to_Gridshapefile('new_grid')
+        
 
-        ex = raster_calculator(raster,'scale')
-        ex.show()
-        ex.exec_()
 
-    def to_dist(self):
+    def initialize_folders_tetra(self):
+        """Run method that performs all the real work"""
+        # See if OK was pressed
+        groups=['Boundaries','Channels','Islands','Sizing']
         proj = QgsProject.instance()
-        raster=[]
-        for child in proj.layerTreeRoot().findLayers():   
-            layer = proj.mapLayer(child.layerId())     
-            if layer.type()!=QgsMapLayer.RasterLayer:
-                raster.append(layer.name())
 
-        ex = raster_calculator(raster,'distance')
-        ex.show()
-        ex.exec_()     
+
+
+
+        childs=[]
+        for child in proj.layerTreeRoot().children():
+            if isinstance(child, QgsLayerTreeGroup):
+                childs.append(child.name())
+
+        exists_already=[]
+        for group in groups:
+            if group not in childs:
+                
+                gr=proj.layerTreeRoot().addGroup(group)
+                gr.setCustomProperty('grid type','tetra')
+            else:
+                exists_already.append(group)
+
+        #if len(exists_already)>1:
+        #    self.iface.messageBar().pushMessage("Error", "layer(s): %s already exists" % ','.join(exists_already), level=Qgis.Warning)
+    def initialize_folders_quad(self):
+        """Run method that performs all the real work"""
+        # See if OK was pressed
+        groups=['Boundaries','Islands','Sizing','Channels']
+        proj = QgsProject.instance()
+
+
+
+
+        childs=[]
+        for child in proj.layerTreeRoot().children():
+            if isinstance(child, QgsLayerTreeGroup):
+                childs.append(child.name())
+
+        exists_already=[]
+        for group in groups:
+            if group not in childs:
+                gr=proj.layerTreeRoot().addGroup(group)
+                gr.setCustomProperty('grid type','quad')
+
+            else:
+                exists_already.append(group)
+
+    def initialize_folders_transfinite(self):
+        """Run method that performs all the real work"""
+        # See if OK was pressed
+        groups=['Boundaries','Corners']
+        proj = QgsProject.instance()
+
+
+
+
+        childs=[]
+        for child in proj.layerTreeRoot().children():
+            if isinstance(child, QgsLayerTreeGroup):
+                childs.append(child.name())
+
+        exists_already=[]
+        for group in groups:
+            if group not in childs:
+                gr=proj.layerTreeRoot().addGroup(group)
+                gr.setCustomProperty('grid type','transfinite')
+
+            else:
+                exists_already.append(group)
