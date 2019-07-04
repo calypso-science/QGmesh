@@ -112,6 +112,7 @@ class RunGmshDialog(QtWidgets.QDialog) :
         cursor = self.textWidget.textCursor()
         cursor.movePosition(QTextCursor.End)
         self.show()
+
         try:
 
             self.msh=pygmsh.generate_mesh(self.geo,extra_gmsh_arguments=['-2','-algo','front2d','-epslc1d','1e-3'])

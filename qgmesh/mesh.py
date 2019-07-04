@@ -165,7 +165,8 @@ class Mesh(object) :
         if shape_type == 'points':
             shape=QgsWkbTypes.Point
         elif shape_type == 'edges':
-            shape=QgsWkbTypes.MultiLineString
+            #shape=QgsWkbTypes.MultiLineString
+            shape=QgsWkbTypes.Point
 
 
 
@@ -189,16 +190,11 @@ class Mesh(object) :
         if shape_type=='edges':
             for ie,edge in enumerate(self.edges):
                 if self.physicalID[ie]==physical:
-                    pointsList = []
-                    for node in edge:
-                            point = QgsPoint()
-                            point.setX(self.x[node])
-                            point.setY(self.y[node])
-                            pointsList.append(point)
-                    #pointsList.append(pointsList[0])
-
+                    point = QgsPointXY()
+                    point.setX(self.x[edge])
+                    point.setY(self.y[edge])
                     newFeature = QgsFeature()
-                    newFeature.setGeometry(QgsGeometry.fromPolyline(pointsList))
+                    newFeature.setGeometry(QgsGeometry.fromPointXY(point))
                     fileWriter.addFeature(newFeature)
 
 
