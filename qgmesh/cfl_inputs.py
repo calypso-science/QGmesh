@@ -42,7 +42,7 @@ class CFL_calculator(QtWidgets.QDialog):
 
         super(CFL_calculator, self).exec_()
         dt=float(self.dt.text())
-        min_CFL=float(self.dt.text())
-        warn_CFL=float(self.dt.text())
+        min_CFL=float(self.min_CFL.text())
+        warn_CFL=float(self.warn_CFL.text())
         
         return dt,min_CFL,warn_CFL

@@ -508,7 +508,44 @@ class qgmesh:
         dt,min_CFL,warn_CFL=ex.exec_()
         
         CFL=self.mesh.get_CFL(dt)
+        self.iface.messageBar().pushMessage("Info", "%s CFL10 " % str(CFL[10]), level=Qgis.Info)
 
+        proj = QgsProject.instance()
+        crs=proj.crs()
+        #Create new shapefile object, loop trough triangle edges and add each
+        # edge as a line.
+        shape=QgsWkbTypes.Point
+        filename='/tmp/new_grid_CFL_dt%ss.shp' % str(dt)
+
+        fields = QgsFields()
+        fields.append(QgsField("CFL", QVariant.Double,'double', 4, 2))
+
+        fileWriter = QgsVectorFileWriter(filename,
+                   "system", fields,shape , crs,
+                   "ESRI Shapefile")
+
+        if fileWriter.hasError() != QgsVectorFileWriter.NoError:
+            raise Exception('Error when creating shapefile '+filename+
+                        ' : '+str(fileWriter.hasError()))
+
+        
+        
+        for ele in range(0,len(self.mesh.xctr)):
+            point = QgsPointXY()
+            point.setX(self.mesh.xctr[ele])
+            point.setY(self.mesh.yctr[ele])
+            newFeature = QgsFeature()
+            newFeature.setGeometry(QgsGeometry.fromPointXY(point))
+            newFeature.setFields(fields)
+            newFeature.setAttributes([float('%4.2f' % CFL[ele])])
+            fileWriter.addFeature(newFeature)
+
+        del fileWriter
+        vlayer = QgsVectorLayer(filename, "CFL", "ogr")
+        vlayer=assign_values(vlayer,min_CFL,warn_CFL)
+        QgsProject.instance().addMapLayer(vlayer,False)
+        G=proj.layerTreeRoot().findGroup('Mesh')
+        G.addLayer(vlayer)
 
 
 
@@ -552,6 +589,14 @@ class qgmesh:
         
         self.mesh.AddBathy(layer)
 
+        for child in proj.layerTreeRoot().findLayers():   
+            layer = proj.mapLayer(child.layerId())     
+            if layer.name()=='Nodes':
+                update_field(layer,'Depth',self.mesh.z)
+                assign_bathy(layer)
+
+
+
         self.iface.messageBar().pushMessage("Info", "Bathy interpolated to the mesh " , level=Qgis.Info)
 
     def mesh_geofile(self):
@@ -579,8 +624,16 @@ class qgmesh:
         G=self.mesh.to_Gridshapefile('new_grid')
         self.mesh.writeShapefile('/tmp/new_grid_point','points')
 
+        self.mesh=Mesh(msh)
+        self.mesh.writeShapefile('/tmp/new_grid_faces','faces')
+
         QThread.sleep(1)
         vlayer = QgsVectorLayer('/tmp/new_grid_point.shp', "Nodes", "ogr")
+        QgsProject.instance().addMapLayer(vlayer,False)
+        G.addLayer(vlayer)
+
+        QThread.sleep(1)
+        vlayer = QgsVectorLayer('/tmp/new_grid_faces.shp', "Faces", "ogr")
         QgsProject.instance().addMapLayer(vlayer,False)
         G.addLayer(vlayer)
 

@@ -18,10 +18,11 @@ import pygmsh
 from netCDF4 import Dataset
 import numpy as np
 
-mesh=meshio.read('/home/remy/Software/QGmesh/test/mix_bnd/mix2.msh')
+mesh=meshio.read('/home/remy/Software/QGmesh/test/mix_bnd/new_grid.msh')
 
 mesh=Mesh(mesh)
 CF=mesh.get_CFL(15)
+import pdb;pdb.set_trace()
 root_grp = Dataset('cfl.nc', 'w', format='NETCDF4',clobber=True)
 root_grp.Conventions = 'CF-1.0, UGRID-1.0'
 # dimensions

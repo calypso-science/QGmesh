@@ -21,6 +21,77 @@ def get_layer(layer_name):
         if layer.name()==layer_name: #and layer.type()==QgsMapLayer.RasterLayer:
             return layer
 
+def update_field(layer,fieldName,value):
+    layer.startEditing()
+    features=layer.getFeatures()
+    layer_provider=layer.dataProvider()
+    idx = layer.fields().indexFromName(fieldName)
+
+    for ie,f in enumerate(features):
+        id=f.id()
+        attr_value={idx:float('%9.3f' % value[ie])}
+        layer_provider.changeAttributeValues({id:attr_value})
+
+    layer.commitChanges()
+
+def assign_bathy(layer):
+    classes=10
+    renderer = layer.renderer()
+    provider = layer.dataProvider()
+    idx = layer.fields().indexFromName('Depth')
+    max_val=layer.maximumValue(idx)
+    min_val=layer.minimumValue(idx)
+    symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+    colDic = {'green':'#40ff00','blue':'0000ff'}
+
+    colorRamp = QgsGradientColorRamp.create(colDic)
+    renderer = QgsGraduatedSymbolRenderer.createRenderer( layer, 'Depth', classes, QgsGraduatedSymbolRenderer.Pretty, symbol, colorRamp )
+    layer.setRenderer( renderer )
+
+
+    layer.triggerRepaint()
+
+    return layer
+
+def assign_values(layer,min_val,warn_val):
+
+    renderer = layer.renderer()
+    provider = layer.dataProvider()
+
+
+
+    colDic = {'red':'#ff0000', 'yellow':'#ffe600','green':'#40ff00'}
+
+
+    myRangeList = []
+    symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+    symbol.setColor(QColor(colDic['red']))
+    myRange = QgsRendererRange(0, min_val, symbol, 'Bad CFL')
+    myRangeList.append(myRange)
+
+    symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+    symbol.setColor(QColor(colDic['yellow']))
+    myRange = QgsRendererRange( min_val+0.0001,warn_val, symbol, 'Warning CFL')
+    myRangeList.append(myRange)
+
+    symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+    symbol.setColor(QColor(colDic['green']))
+    myRange = QgsRendererRange( warn_val+0.0001,np.inf, symbol, 'Good CFL')
+    myRangeList.append(myRange)
+
+
+    myRenderer = QgsGraduatedSymbolRenderer('CFL', myRangeList)
+    myRenderer.setMode(QgsGraduatedSymbolRenderer.Custom)
+
+                                                                  
+
+    layer.setRenderer(myRenderer)
+
+    #layer.triggerRepaint()
+
+    return layer
+
+
 def assign_colorbar(layer):
 
     renderer = layer.renderer()

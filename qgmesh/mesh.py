@@ -1,7 +1,7 @@
 import numpy as np
 from qgis.core import QgsPoint,QgsWkbTypes,QgsVectorFileWriter,QgsMeshLayer,QgsProject,QgsField,QgsFields,QgsLayerTreeGroup,QgsCoordinateReferenceSystem,QgsPointXY,QgsFeature,QgsGeometry
 
-from PyQt5.QtCore import QThread
+from PyQt5.QtCore import QThread,QVariant
 import gdal
 from collections import OrderedDict
 import numpy as np
@@ -78,7 +78,8 @@ class Mesh(object) :
             tot+=quad_len
 
         self.triangles=np.ones((tot,4),int)*-1
-
+        self.xctr=np.ones((tot,1))*-1.
+        self.yctr=np.ones((tot,1))*-1.
         self.edges=[]
         tmp=[]
         
@@ -98,13 +99,58 @@ class Mesh(object) :
 
         self.edges=unique_edges.copy()
 
+       
+
+
         if 'triangle' in mesh.cells:
             self.triangles[0:tri_len,0:3]=mesh.cells['triangle']
+            for ie in range(0,tri_len):
+                self.xctr[ie]=np.sum(self.x[self.triangles[ie,0:3]])/3
+                self.yctr[ie]=np.sum(self.y[self.triangles[ie,0:3]])/3
+
 
         if 'quad' in mesh.cells:
             self.triangles[tri_len:tot,:]=mesh.cells['quad']
+            for ie in range(tri_len,tot):
+                self.xctr[ie]=np.sum(self.x[self.triangles[ie,0:4]])/4
+                self.yctr[ie]=np.sum(self.y[self.triangles[ie,0:4]])/4
 
-        self.triangles=self.triangles
+
+        self.remove_hanging_nodes()
+        self.areas=np.ones((tot))*-1.
+        x=self.x
+        y=self.y
+        Elems=range(0,len(self.triangles))
+        ref=np.zeros((len(x),1))
+
+        nodes_coor = np.hstack((np.vstack([x,y]).T,ref))
+        if 'triangle' in mesh.cells:
+            #populate (x,y) and elevation information for each triangular element
+            tri = np.zeros((tri_len,3,3))
+            for itri in range(0,tri_len):
+                for ivert in range(3):
+                    tri[itri,ivert,:] = nodes_coor[self.triangles[Elems[itri]][ivert]] 
+            
+            self.areas[0:tri_len] = cal_tri_area(tri[0:tri_len,:,0:2].reshape(tri_len,6).transpose())
+        
+        if 'quad' in mesh.cells:
+            tri1 = np.zeros((tot-tri_len,3,3))
+            tri2 = np.zeros((tot-tri_len,3,3))
+
+            for itri in range(tri_len,tot):
+                for iv,ivert in enumerate([0,1,3]):
+                    tri1[itri-tri_len,iv,:] = nodes_coor[self.triangles[Elems[itri]][ivert]] 
+                for iv,ivert in enumerate([1,2,3]):
+                    tri2[itri-tri_len,iv,:] = nodes_coor[self.triangles[Elems[itri]][ivert]] 
+
+            a1=cal_tri_area(tri1[:,:,0:2].reshape(tot-tri_len,6).transpose())
+            a2=cal_tri_area(tri2[:,:,0:2].reshape(tot-tri_len,6).transpose())
+
+            self.areas[tri_len:tot] = a1+a2
+
+
+
+        self.res=2*np.sqrt(self.areas/np.pi)
 
     def _build_string(self):
         stri=''
@@ -164,14 +210,25 @@ class Mesh(object) :
         # edge as a line.
         if shape_type == 'points':
             shape=QgsWkbTypes.Point
+            fields=  QgsFields()      
+            fields.append(QgsField("Id", QVariant.Int,'integer', 9, 0))
+            fields.append(QgsField("Depth", QVariant.Double,'double', 9, 3))
         elif shape_type == 'edges':
             #shape=QgsWkbTypes.MultiLineString
             shape=QgsWkbTypes.Point
-
+            fields = QgsFields()
+        elif shape_type == 'faces':
+            #shape=QgsWkbTypes.MultiLineString
+            shape=QgsWkbTypes.Polygon
+            fields=  QgsFields()      
+            fields.append(QgsField("Id", QVariant.Int,'integer', 9, 0))
+            fields.append(QgsField("type", QVariant.Int,'integer', 1, 0))
+            fields.append(QgsField("area", QVariant.Int,'integer', 9, 0))
+            fields.append(QgsField("resolution", QVariant.Int,'integer', 9, 0))
 
 
         fileWriter = QgsVectorFileWriter(filename,
-                   "system", QgsFields(),shape , crs,
+                   "system", fields,shape , crs,
                    "ESRI Shapefile")
 
         if fileWriter.hasError() != QgsVectorFileWriter.NoError:
@@ -185,6 +242,8 @@ class Mesh(object) :
                 point.setY(self.y[node])
                 newFeature = QgsFeature()
                 newFeature.setGeometry(QgsGeometry.fromPointXY(point))
+                newFeature.setFields(fields)
+                newFeature.setAttributes([int(node+1),float('%9.3f' % self.z[node])])
                 fileWriter.addFeature(newFeature)
 
         if shape_type=='edges':
@@ -196,6 +255,26 @@ class Mesh(object) :
                     newFeature = QgsFeature()
                     newFeature.setGeometry(QgsGeometry.fromPointXY(point))
                     fileWriter.addFeature(newFeature)
+
+        if shape_type=='faces':
+            for ie in range(0,len(self.triangles)):
+                if self.triangles[ie,-1]<0:
+                    nface=3
+                else:
+                    nface=4
+                
+                points = []
+                for fc in range(0,nface):
+                    i=self.triangles[ie,fc]
+                    points.append(QgsPointXY(self.x[i],self.y[i]))
+
+                i=self.triangles[ie,0]
+                points.append(QgsPointXY(self.x[i],self.y[i]))
+                newFeature = QgsFeature()
+                newFeature.setGeometry(QgsGeometry.fromPolygonXY([points]))
+                newFeature.setFields(fields)
+                newFeature.setAttributes([int(ie+1),int(nface),float('%9.f' % self.areas[ie]),float('%9.f' % self.res[ie])])
+                fileWriter.addFeature(newFeature)
 
 
         del fileWriter
@@ -254,9 +333,6 @@ class Mesh(object) :
             self.z=np.asarray([x for x in Z if str(x) != 'nan'])
 
         
-     
-
-
 
     def writeUnstructuredGridSMS(self, mesh):
         """
@@ -266,7 +342,7 @@ class Mesh(object) :
 
        """
 
-        self.remove_hanging_nodes()
+        
         triangles=self.triangles+1
         x=self.x
         y=self.y
@@ -399,32 +475,14 @@ class Mesh(object) :
         return De
     
 
-
-    def get_areas(self):
-        x=self.x
-        y=self.y
-        Elems=range(0,len(self.triangles))
-        ref=np.zeros((len(x),1))
-
-        nodes_coor = np.hstack((np.vstack([x,y]).T,ref))
-        #populate (x,y) and elevation information for each triangular element
-        tri = np.zeros((len(Elems),3,3))
-        for itri in range(len(Elems)):
-            for ivert in range(3):
-                tri[itri,ivert,:] = nodes_coor[self.triangles[Elems[itri]][ivert]] 
-
-        areas = cal_tri_area(tri[:,:,0:2].reshape(len(Elems),6).transpose())
-        return areas
-
-
     def get_CFL(self,dt):
         X=self.x
         Y=self.y
         D=self.z
+        A=self.areas
         ele = self.triangles
         De=self.map_np2ne(D)
         De[np.where(De<0.1)]=0.1
-        areas=self.get_areas()
-        CFL=calculate_CFL(De,areas,dt)
+        CFL=calculate_CFL(De,A,dt)
 
         return CFL
