@@ -318,6 +318,30 @@ class qgmesh:
 
         self.menu_mesh.addAction(export_msh)
 
+        import_msh=self.add_action(
+            icon_path,
+            text=self.tr(u'Import Mesh'),
+            callback=self.import_mesh,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip="Import the Mesh",
+            whats_this="This will import the Mesh file for manual editing.")
+
+        self.menu_mesh.addAction(import_msh)
+
+        refresh_msh=self.add_action(
+            icon_path,
+            text=self.tr(u'Refresh Mesh'),
+            callback=self.refresh_mesh,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=True,
+            add_to_menu=False,
+            status_tip="Refresh the Mesh",
+            whats_this="This will resfresh the Mesh with latest values.")
+
+        self.menu_mesh.addAction(import_msh)
+
         get_CFL=self.add_action(
             icon_path,
             text=self.tr(u'Display CFL'),
@@ -515,7 +539,10 @@ class qgmesh:
         #Create new shapefile object, loop trough triangle edges and add each
         # edge as a line.
         shape=QgsWkbTypes.Point
-        filename='/tmp/new_grid_CFL_dt%ss.shp' % str(dt)
+        path_absolute = QgsProject.instance().readPath('./')
+        
+        filename='new_grid_CFL_dt%ss.shp' % str(dt)
+        filename=os.path.join(path_absolute,filename)
 
         fields = QgsFields()
         fields.append(QgsField("CFL", QVariant.Double,'double', 4, 2))
@@ -567,6 +594,8 @@ class qgmesh:
         if fname=='':
             return
 
+        self.mesh=self.refresh_mesh()
+
         if not fname.endswith('.gr3'):
             meshio.write(fname,self.mesh)
         else:
@@ -574,6 +603,58 @@ class qgmesh:
 
         self.iface.messageBar().pushMessage("Info", "%s exported " % fname, level=Qgis.Info)
 
+    def import_mesh(self):
+        qfd = QFileDialog()
+        path = ""
+
+        filetype=meshio.helpers.input_filetypes
+        fileext=meshio.helpers._extension_to_filetype
+        fileext = dict(map(reversed, fileext.items()))
+        fil='GR3 (*.gr3);;MSH (*.msh);;'
+        for typ in filetype:
+            if typ in fileext:
+                fil+=typ.upper()+' (*.'+fileext[typ]+');;'
+
+
+        fname = QFileDialog.getOpenFileName(qfd, 'Import Mesh file', path, fil)
+        fname=fname[0]
+        if fname=='':
+            return
+
+        if fname.endswith('.gr3'):
+            self.mesh=Mesh([],[],[],[])
+            self.mesh.ReadUnstructuredGridSMS(fname)
+            self.mesh_geofile()
+            
+            
+        else:
+            msh=meshio.read(fname)
+            self.mesh_geofile(msh=msh)
+
+        self.iface.messageBar().pushMessage("Info", "%s imported " % fname, level=Qgis.Info)
+
+    def refresh_mesh(self):
+        proj = QgsProject.instance()
+
+        for child in proj.layerTreeRoot().findGroups():        
+            if child.name() == 'Mesh':
+                for sub_subChild in child.children():
+                    layer = proj.mapLayer(sub_subChild.layerId())
+                    if layer.name()=='Nodes':
+                        idx = layer.fields().indexFromName('Depth')
+                        for node in layer.getFeatures():
+                            nodeID = node.attribute(0)-1
+                            geom = node.geometry().asPoint()
+                            dep = node.attribute(idx)
+                            self.mesh.z[nodeID]=dep
+                            self.mesh.x[nodeID]=geom[0]
+                            self.mesh.y[nodeID]=geom[1]
+
+
+
+        self.iface.messageBar().pushMessage("Info", "Mesh updated ", level=Qgis.Info)
+        
+        return self.mesh
 
     def add_bathy(self):
         proj = QgsProject.instance()
@@ -599,48 +680,56 @@ class qgmesh:
 
         self.iface.messageBar().pushMessage("Info", "Bathy interpolated to the mesh " , level=Qgis.Info)
 
-    def mesh_geofile(self):
-
-
-        main=RunGmshDialog(self.geo)
-        main.show()
-
-        myStream=EmittingStream()
-        myStream.textWritten.connect(main.normalOutputWritten)
-
-        sys.stdout = myStream
-
-        msh=main.exec_()
-        msh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cell_data=msh.cell_data,field_data=msh.field_data)
-        
+    def mesh_geofile(self,msh=None):
         path_absolute = QgsProject.instance().readPath('./')
-        mesh_out=os.path.join(path_absolute,'new_grid.msh')
-        meshio.write(mesh_out,msh)
 
-        proj = QgsProject.instance()
-        proj.writeEntry("QGmsh", "mesh_file", mesh_out)
+        if msh == 'None':
+            main=RunGmshDialog(self.geo)
+            main.show()
 
-        self.mesh=Mesh(msh)
+            myStream=EmittingStream()
+            myStream.textWritten.connect(main.normalOutputWritten)
+
+            sys.stdout = myStream
+
+            msh=main.exec_()
+            msh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cell_data=msh.cell_data,field_data=msh.field_data)
+            
+        
+            mesh_out=os.path.join(path_absolute,'new_grid.msh')
+            meshio.write(mesh_out,msh)
+
+            proj = QgsProject.instance()
+            proj.writeEntry("QGmsh", "mesh_file", mesh_out)
+
+            triangles,edges,physicalID=get_format_from_gmsh(msh)
+
+            self.mesh=Mesh(msh.points[:,0],msh.points[:,1],msh.points[:,2],triangles,\
+                edges=edges,\
+                physical=msh.field_data,\
+                physicalID=physicalID)
+
+
         G=self.mesh.to_Gridshapefile('new_grid')
-        self.mesh.writeShapefile('/tmp/new_grid_point','points')
 
-        self.mesh=Mesh(msh)
-        self.mesh.writeShapefile('/tmp/new_grid_faces','faces')
+        self.mesh.writeShapefile(os.path.join(path_absolute,'new_grid_point'),'points')
+        self.mesh.writeShapefile(os.path.join(path_absolute,'new_grid_faces'),'faces')
 
         QThread.sleep(1)
-        vlayer = QgsVectorLayer('/tmp/new_grid_point.shp', "Nodes", "ogr")
+        vlayer = QgsVectorLayer(os.path.join(path_absolute,'new_grid_point.shp'), "Nodes", "ogr")
+        assign_bathy(vlayer)
         QgsProject.instance().addMapLayer(vlayer,False)
         G.addLayer(vlayer)
 
         QThread.sleep(1)
-        vlayer = QgsVectorLayer('/tmp/new_grid_faces.shp', "Faces", "ogr")
+        vlayer = QgsVectorLayer(os.path.join(path_absolute,'new_grid_faces.shp'), "Faces", "ogr")
         QgsProject.instance().addMapLayer(vlayer,False)
         G.addLayer(vlayer)
 
         for physical in self.mesh.physical.keys():
             if any(self.mesh.physicalID==self.mesh.physical[physical][0]):
-                self.mesh.writeShapefile('/tmp/new_grid_bnd_'+physical,'edges',physical=self.mesh.physical[physical][0])
-                vlayer = QgsVectorLayer('/tmp/new_grid_bnd_'+physical+'.shp', physical, "ogr")
+                self.mesh.writeShapefile(os.path.join(path_absolute,'new_grid_bnd_'+physical),'edges',physical=self.mesh.physical[physical][0])
+                vlayer = QgsVectorLayer(os.path.join(path_absolute,'new_grid_bnd_'+physical+'.shp'), physical, "ogr")
                 QgsProject.instance().addMapLayer(vlayer,False)
                 G.addLayer(vlayer)
        

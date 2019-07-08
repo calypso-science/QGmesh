@@ -1,7 +1,7 @@
 import numpy as np
 from qgis.core import QgsPoint,QgsWkbTypes,QgsVectorFileWriter,QgsMeshLayer,QgsProject,QgsField,QgsFields,QgsLayerTreeGroup,QgsCoordinateReferenceSystem,QgsPointXY,QgsFeature,QgsGeometry
-
-from PyQt5.QtCore import QThread,QVariant
+from PyQt5 import QtWidgets
+from PyQt5.QtCore import QThread,QVariant,Qt
 import gdal
 from collections import OrderedDict
 import numpy as np
@@ -51,120 +51,135 @@ def calculate_CFL(depth,A,dt):
 
 class Mesh(object) :
 
-    def __init__(self,mesh) :
-        self.mesh=mesh
-        
+    def __init__(self,x,y,z,faces,edges=None,physical=None,physicalID=None) :
+
         self.types=None
-        self.x=mesh.points[:,0]
-        self.y=mesh.points[:,1]
-        self.z=mesh.points[:,2]
-        self.physical=mesh.field_data
+        self.x=x
+        self.y=y
+        self.z=z
         
+        
+        self.physical=physical
+        self.physicalID=physicalID
+        self.edges=edges
+
 
         self.nodes=np.arange(1,len(self.x)+1)
-        self.triangles=mesh.cells
-        proj = QgsProject.instance()
-        self.crs=proj.crs()
 
-        tot=0
-        tri_len=0
-        quad_len=0
-        if 'triangle' in mesh.cells:
-            tri_len=len(mesh.cells['triangle'])
-            tot+=tri_len
-
-        if 'quad' in mesh.cells:
-            quad_len=len(mesh.cells['quad'])
-            tot+=quad_len
-
-        self.triangles=np.ones((tot,4),int)*-1
-        self.xctr=np.ones((tot,1))*-1.
-        self.yctr=np.ones((tot,1))*-1.
-        self.edges=[]
-        tmp=[]
-        
-        for ie,edge in enumerate(mesh.cells['line']):
-            self.edges.append(edge[0])
-            self.edges.append(edge[1])
-            tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
-            tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
-
-        
-
-        unique_edges=np.array(list(OrderedDict.fromkeys(self.edges)))
-        self.physicalID=[]
-        for x in unique_edges:
-            self.physicalID.append(tmp[self.edges.index(x)])
+        if len(x)>0:
+            self.faces=faces.astype('int')
+            self._calculate_face_nodes()
+            self._remove_hanging_nodes()
+            self._calculate_areas()
+            self._calculate_res()
 
 
-        self.edges=unique_edges.copy()
+    def _calculate_res(self):
+        self.res=2*np.sqrt(self.areas/np.pi)
 
-       
-
-
-        if 'triangle' in mesh.cells:
-            self.triangles[0:tri_len,0:3]=mesh.cells['triangle']
-            for ie in range(0,tri_len):
-                self.xctr[ie]=np.sum(self.x[self.triangles[ie,0:3]])/3
-                self.yctr[ie]=np.sum(self.y[self.triangles[ie,0:3]])/3
-
-
-        if 'quad' in mesh.cells:
-            self.triangles[tri_len:tot,:]=mesh.cells['quad']
-            for ie in range(tri_len,tot):
-                self.xctr[ie]=np.sum(self.x[self.triangles[ie,0:4]])/4
-                self.yctr[ie]=np.sum(self.y[self.triangles[ie,0:4]])/4
-
-
-        self.remove_hanging_nodes()
-        self.areas=np.ones((tot))*-1.
+    def _calculate_areas(self):
+        self.areas=np.ones(len(self.faces))*-1.
         x=self.x
         y=self.y
-        Elems=range(0,len(self.triangles))
+        Elems=range(0,len(self.faces))
         ref=np.zeros((len(x),1))
 
         nodes_coor = np.hstack((np.vstack([x,y]).T,ref))
-        if 'triangle' in mesh.cells:
-            #populate (x,y) and elevation information for each triangular element
-            tri = np.zeros((tri_len,3,3))
-            for itri in range(0,tri_len):
+
+        for face in range(0,len(self.faces)):
+            if self.faces[face,-1]<0:
+                tri = np.zeros((1,3,3))
                 for ivert in range(3):
-                    tri[itri,ivert,:] = nodes_coor[self.triangles[Elems[itri]][ivert]] 
-            
-            self.areas[0:tri_len] = cal_tri_area(tri[0:tri_len,:,0:2].reshape(tri_len,6).transpose())
-        
-        if 'quad' in mesh.cells:
-            tri1 = np.zeros((tot-tri_len,3,3))
-            tri2 = np.zeros((tot-tri_len,3,3))
-
-            for itri in range(tri_len,tot):
+                    tri[0,ivert,:]=nodes_coor[self.faces[face,ivert]] 
+                self.areas[face] = cal_tri_area(tri[0,:,0:2].reshape(1,6).transpose())
+            else:
+                tri1 = np.zeros((1,3,3))
+                tri2 = np.zeros((1,3,3))
                 for iv,ivert in enumerate([0,1,3]):
-                    tri1[itri-tri_len,iv,:] = nodes_coor[self.triangles[Elems[itri]][ivert]] 
+                    tri1[0,iv,:] = nodes_coor[self.faces[face,ivert]] 
                 for iv,ivert in enumerate([1,2,3]):
-                    tri2[itri-tri_len,iv,:] = nodes_coor[self.triangles[Elems[itri]][ivert]] 
+                    tri2[0,iv,:] = nodes_coor[self.faces[face,ivert]]
 
-            a1=cal_tri_area(tri1[:,:,0:2].reshape(tot-tri_len,6).transpose())
-            a2=cal_tri_area(tri2[:,:,0:2].reshape(tot-tri_len,6).transpose())
+                a1=cal_tri_area(tri1[0,:,0:2].reshape(1,6).transpose())
+                a2=cal_tri_area(tri2[0,:,0:2].reshape(1,6).transpose())
 
-            self.areas[tri_len:tot] = a1+a2
+                self.areas[face] = a1+a2
 
 
+    def _calculate_face_nodes(self):
+        self.xctr=np.ones(len(self.faces))*-1.
+        self.yctr=np.ones(len(self.faces))*-1.
 
-        self.res=2*np.sqrt(self.areas/np.pi)
+        for face in range(0,len(self.faces)):
+            if self.faces[face,-1]<0:
+                self.xctr[face]=np.sum(self.x[self.faces[face,0:3]])/3
+                self.yctr[face]=np.sum(self.y[self.faces[face,0:3]])/3
+
+            else:
+                self.xctr[face]=np.sum(self.x[self.faces[face,0:4]])/4
+                self.yctr[face]=np.sum(self.y[self.faces[face,0:4]])/4
+
 
     def _build_string(self):
         stri=''
         for pt in range(0,len(self.nodes)):
             stri+='%.5f, %.5f \n' % (self.x[pt],self.y[pt])
         stri+="---\n"
-        for face in range(0,len(self.triangles)):
-            if self.triangles[face,-1]<0:
-                stri+='%.f, %.f, %.f \n' % (self.triangles[face,0],self.triangles[face,1],self.triangles[face,2])
+        for face in range(0,len(self.faces)):
+            if self.faces[face,-1]<0:
+                stri+='%.f, %.f, %.f \n' % (self.faces[face,0],self.faces[face,1],self.faces[face,2])
             else:
-                stri+='%.f, %.f, %.f, %.f \n' % (self.triangles[face,0],self.triangles[face,1],self.triangles[face,2],self.triangles[face,3])
+                stri+='%.f, %.f, %.f, %.f \n' % (self.faces[face,0],self.faces[face,1],self.faces[face,2],self.faces[face,3])
 
 
         self.stri=stri
+
+    def _remove_hanging_nodes(self):
+
+        unique_nodes=np.unique(self.faces+1)
+        unique_nodes=unique_nodes[unique_nodes!=0]
+
+        hanging_nodes = (set(self.nodes) | set(unique_nodes)) - (set(self.nodes) & set(unique_nodes))
+        hanging_nodes=sorted(hanging_nodes)
+        X=self.x.tolist()
+        Y=self.y.tolist()
+        Z=self.z
+        Z[np.isnan(Z)]=0
+        Z=Z.tolist()
+        triangles=self.faces.astype('float')
+        edges=self.edges.astype('float')
+        triangles[triangles==-1]=np.nan
+        for hanging_node in hanging_nodes:
+            edges[edges==hanging_node]=np.nan
+
+
+
+
+        
+        if len(hanging_nodes)>0:
+            node_removed=1
+            for hanging_node in hanging_nodes:
+                X[hanging_node-1]=np.nan
+                Y[hanging_node-1]=np.nan
+                Z[hanging_node-1]=np.nan
+
+                triangles[triangles>hanging_node-node_removed]=triangles[triangles>hanging_node-node_removed]-1
+
+                edges[edges>hanging_node-node_removed]=edges[edges>hanging_node-node_removed]-1
+                node_removed+=1
+
+
+            triangles[np.isnan(triangles)]=-1
+            self.faces=triangles.astype('int64')
+            
+            self.physicalID=np.asarray([self.physicalID[x] for x in range(0,len(edges)) if str(edges[x]) != 'nan'])
+            self.edges=np.asarray([x for x in edges if str(x) != 'nan'])
+            self.edges=self.edges.astype('int64')
+            self.x=np.asarray([x for x in X if str(x) != 'nan'])
+            self.y=np.asarray([x for x in Y if str(x) != 'nan'])
+            self.z=np.asarray([x for x in Z if str(x) != 'nan'])
+
+
     def to_Gridshapefile(self,shape_name):
 
 
@@ -186,16 +201,13 @@ class Mesh(object) :
         QThread.sleep(1)
 
 
+        # self._build_string()
+        # outLayer = QgsMeshLayer( self.stri, \
+        #     shape_name, \
+        #     "mesh_memory")
 
-
-
-        self._build_string()
-        outLayer = QgsMeshLayer( self.stri, \
-            shape_name, \
-            "mesh_memory")
-
-        QgsProject.instance().addMapLayer(outLayer,False)
-        G.addLayer(outLayer)
+        # QgsProject.instance().addMapLayer(outLayer,False)
+        # G.addLayer(outLayer)
         return G
 
 
@@ -257,18 +269,18 @@ class Mesh(object) :
                     fileWriter.addFeature(newFeature)
 
         if shape_type=='faces':
-            for ie in range(0,len(self.triangles)):
-                if self.triangles[ie,-1]<0:
+            for ie in range(0,len(self.faces)):
+                if self.faces[ie,-1]<0:
                     nface=3
                 else:
                     nface=4
                 
                 points = []
                 for fc in range(0,nface):
-                    i=self.triangles[ie,fc]
+                    i=self.faces[ie,fc]
                     points.append(QgsPointXY(self.x[i],self.y[i]))
 
-                i=self.triangles[ie,0]
+                i=self.faces[ie,0]
                 points.append(QgsPointXY(self.x[i],self.y[i]))
                 newFeature = QgsFeature()
                 newFeature.setGeometry(QgsGeometry.fromPolygonXY([points]))
@@ -287,52 +299,94 @@ class Mesh(object) :
             self.z[pt]=bilinear(self.x[pt],self.y[pt],gt,bathy, no_data=np.nan)
 
 
-    def remove_hanging_nodes(self):
+    
+    def ReadUnstructuredGridSMS(self, fname):
+        """
+        Takes appropriate triangle, node, boundary type and coordinate data and
+        writes out an SMS formatted grid file (mesh). The footer is largely static,
+        but the elements, nodes and node strings are parsed from the input data.
 
-        unique_nodes=np.unique(self.triangles+1)
-        unique_nodes=unique_nodes[unique_nodes!=0]
+       """
 
-        hanging_nodes = (set(self.nodes) | set(unique_nodes)) - (set(self.nodes) & set(unique_nodes))
-        hanging_nodes=sorted(hanging_nodes)
-        X=self.x.tolist()
-        Y=self.y.tolist()
-        Z=self.z
-        Z[np.isnan(Z)]=0
-        Z=Z.tolist()
-        triangles=self.triangles.astype('float')
-        edges=self.edges.astype('float')
-        triangles[triangles==-1]=np.nan
-        for hanging_node in hanging_nodes:
-            edges[edges==hanging_node]=np.nan
-
-
-
-
+        f = open(fname)
+        line = f.readline() #comment
+        tmp = f.readline().strip().split(None,2) 
+        n_elems=tmp[0]
+        n_nodes=tmp[1]
+        self.x=np.ones((int(n_nodes)))*-1.
+        self.y=np.ones((int(n_nodes)))*-1.
+        self.z=np.ones((int(n_nodes)))*-1.
         
-        if len(hanging_nodes)>0:
-            node_removed=1
-            for hanging_node in hanging_nodes:
-                X[hanging_node-1]=np.nan
-                Y[hanging_node-1]=np.nan
-                Z[hanging_node-1]=np.nan
+        self.faces=np.ones((int(n_elems),4))*-1.
+        progress = QtWidgets.QProgressDialog("Reading GR3 mesh...", "Abort", 0, 100)
+        progress.setWindowModality(Qt.WindowModal)
 
-                triangles[triangles>hanging_node-node_removed]=triangles[triangles>hanging_node-node_removed]-1
+        for i in range(int(n_nodes)):
+            nodeid,nodex,nodey,nodez = f.readline().strip().split(None,4)
+            self.x[i]=float(nodex)
+            self.y[i]=float(nodey)
+            self.z[i]=float(nodez)
+        progress.setValue(1/4*100)
+        if progress.wasCanceled():
+                    return
 
-                edges[edges>hanging_node-node_removed]=edges[edges>hanging_node-node_removed]-1
-                node_removed+=1
+        for i in range(int(n_elems)):
+            elemid,ty,tmp = f.readline().strip().split(None,2)
+            tmp=tmp.split()[0:int(ty)]
+            self.faces[i,0:int(ty)]=[float(x) for x in tmp]
 
+        progress.setValue(2/4*100)
+        if progress.wasCanceled():
+                    return
 
-            triangles[np.isnan(triangles)]=-1
-            self.triangles=triangles.astype('int64')
+        n_open_boundaries = int(f.readline().strip().split(None,1)[0])
+        self.edges=[]
+        self.physicalID=[]
+        self.physical={}
+        self.physical['ocean']=np.array([1,1])
+        self.physical['coast']=np.array([2,1])
+        for n_open in range(n_open_boundaries):
+            if n_open==0:
+                f.readline()
+
+            nodes=int(f.readline().strip().split(None,1)[0])          
+            for node in range(0,nodes):
+                self.edges.append(int(f.readline().strip().split(None,1)[0]))
+                self.physicalID.append(1)
             
-            self.physicalID=np.asarray([self.physicalID[x] for x in range(0,len(edges)) if str(edges[x]) != 'nan'])
-            self.edges=np.asarray([x for x in edges if str(x) != 'nan'])
-            self.edges=self.edges.astype('int64')
-            self.x=np.asarray([x for x in X if str(x) != 'nan'])
-            self.y=np.asarray([x for x in Y if str(x) != 'nan'])
-            self.z=np.asarray([x for x in Z if str(x) != 'nan'])
+            self.edges.append(np.nan)
+            self.physicalID.append(np.nan)
 
-        
+
+        n_land_boundaries = int(f.readline().strip().split(None,1)[0])
+        for n_land in range(n_land_boundaries):
+            if n_land==0:
+                f.readline()
+            nodes=int(f.readline().strip().split(None,1)[0])  
+       
+            for node in range(0,nodes):
+                self.edges.append(int(f.readline().strip().split(None,1)[0]))
+                self.physicalID.append(2)
+
+            self.edges.append(np.nan)
+            self.physicalID.append(np.nan)
+            
+        f.close()   
+        progress.setValue(3/4*100)
+        if progress.wasCanceled():
+                    return
+
+        self.nodes=np.arange(1,len(self.x)+1)
+        self.edges=np.array(self.edges).astype('int32')-1
+        self.faces=np.array(self.faces).astype('int32')-1
+        self._calculate_face_nodes()
+
+        self._calculate_areas()
+        self._calculate_res()
+
+        progress.setValue(4/4*100)
+        if progress.wasCanceled():
+                    return
 
     def writeUnstructuredGridSMS(self, mesh):
         """
@@ -343,7 +397,7 @@ class Mesh(object) :
        """
 
         
-        triangles=self.triangles+1
+        triangles=self.faces+1
         x=self.x
         y=self.y
         z=self.z
@@ -352,14 +406,14 @@ class Mesh(object) :
         fileWrite = open(mesh, 'w')
         # Add a header
         fileWrite.write('hgrid create with QGmesh\n')
-        fileWrite.write('%i\t%i\n' % (len(self.triangles),len(self.x)))
+        fileWrite.write('%i\t%i\n' % (len(self.faces),len(self.x)))
 
         # Write out the connectivity table (triangles)
         for node in range(0,len(self.x)):
             fileWrite.write('%i\t%f\t%f\t%f\t\n'% (node+1,self.x[node],self.y[node],self.z[node]))
 
-        for face in range(0,len(self.triangles)):
-            if self.triangles[face,-1]<0:
+        for face in range(0,len(self.faces)):
+            if self.faces[face,-1]<0:
                 fileWrite.write('%i\t3\t%i\t%i\t%i\t0\n' % (face+1 ,triangles[face,0],triangles[face,1],triangles[face,2]))
             else:
                 fileWrite.write('%i\t4\t%i\t%i\t%i\t%i\n' % (face+1 ,triangles[face,0],triangles[face,1],triangles[face,2],triangles[face,3]))
@@ -464,7 +518,7 @@ class Mesh(object) :
         fileWrite.close()
 
     def map_np2ne(self,D):
-        elem=self.triangles
+        elem=self.faces
         idx3    = elem[:,-1]<0
         idx4    = quad=~idx3
 
@@ -480,7 +534,7 @@ class Mesh(object) :
         Y=self.y
         D=self.z
         A=self.areas
-        ele = self.triangles
+        ele = self.faces
         De=self.map_np2ne(D)
         De[np.where(De<0.1)]=0.1
         CFL=calculate_CFL(De,A,dt)

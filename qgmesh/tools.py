@@ -12,6 +12,55 @@ from PyQt5 import QtWidgets
 import struct
 from datetime import datetime
 from qgis.utils import iface
+from collections import OrderedDict
+
+
+
+def get_format_from_gmsh(mesh):
+    tot=0
+    tri_len=0
+    quad_len=0
+    if 'triangle' in mesh.cells:
+        tri_len=len(mesh.cells['triangle'])
+        tot+=tri_len
+
+    if 'quad' in mesh.cells:
+        quad_len=len(mesh.cells['quad'])
+        tot+=quad_len
+
+    Edges=np.array([])
+    edges=[]
+    tmp=[]
+    physicalID=[]
+    for ie,edge in enumerate(mesh.cells['line']):
+        if ie>0:
+            if mesh.cell_data['line']['gmsh:physical'][ie]!=mesh.cell_data['line']['gmsh:physical'][ie-1]:
+                unique_edges=np.array(list(OrderedDict.fromkeys(edges)))
+                Edges=np.concatenate((Edges,unique_edges))
+                Edges=np.concatenate((Edges,np.array([np.nan])))
+                for x in unique_edges:
+                    physicalID.append(tmp[edges.index(x)])
+                physicalID.append(np.nan)
+                edges=[]
+                tmp=[]
+
+        edges.append(edge[0])
+        edges.append(edge[1])
+        tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
+        tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
+
+
+
+    edges=unique_edges.copy()
+    triangles=np.ones((tot,4))*-1.
+    if 'triangle' in mesh.cells:
+        triangles[0:tri_len,0:3]=mesh.cells['triangle']
+
+    if 'quad' in mesh.cells:
+        triangles[tri_len:tot,:]=mesh.cells['quad']
+
+
+    return triangles,edges,physicalID
 
 def get_layer(layer_name):
     proj = QgsProject.instance()
@@ -44,8 +93,12 @@ def assign_bathy(layer):
     symbol = QgsSymbol.defaultSymbol(layer.geometryType())
     colDic = {'green':'#40ff00','blue':'0000ff'}
 
-    colorRamp = QgsGradientColorRamp.create(colDic)
+    #colorRamp = QgsGradientColorRamp.create(colDic)
+    defaultColorRampNames=QgsStyle().defaultStyle().colorRampNames()
+    colorRamp = QgsStyle().defaultStyle().colorRamp(defaultColorRampNames[25])
+
     renderer = QgsGraduatedSymbolRenderer.createRenderer( layer, 'Depth', classes, QgsGraduatedSymbolRenderer.Pretty, symbol, colorRamp )
+
     layer.setRenderer( renderer )
 
 

@@ -17,12 +17,19 @@ import meshio
 import pygmsh
 from netCDF4 import Dataset
 import numpy as np
+from collections import OrderedDict
+from tools import get_format_from_gmsh
 
-mesh=meshio.read('/home/remy/Software/QGmesh/test/mix_bnd/new_grid.msh')
 
-mesh=Mesh(mesh)
-CF=mesh.get_CFL(15)
-import pdb;pdb.set_trace()
+Mesh=Mesh([],[],[],[])
+Mesh.ReadUnstructuredGridSMS('/home/remy/Software/QGmesh/test/mix_bnd/hgrid.gr3')
+# Mesh.to_Gridshapefile('new_grid')
+# msh=meshio.read('/home/remy/Software/QGmesh/test/mix_bnd/new_grid.msh')
+# triangles,edges,physicalID=get_format_from_gmsh(msh)
+# mesh=Mesh(msh.points[:,0],msh.points[:,1],msh.points[:,2],triangles,edges=edges,physical=msh.field_data,physicalID=physicalID)
+
+
+
 root_grp = Dataset('cfl.nc', 'w', format='NETCDF4',clobber=True)
 root_grp.Conventions = 'CF-1.0, UGRID-1.0'
 # dimensions
