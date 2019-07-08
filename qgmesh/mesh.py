@@ -230,11 +230,16 @@ class Mesh(object) :
             #shape=QgsWkbTypes.MultiLineString
             shape=QgsWkbTypes.Point
             fields = QgsFields()
+            fields.append(QgsField("Id", QVariant.Int,'integer', 9, 0))
         elif shape_type == 'faces':
             #shape=QgsWkbTypes.MultiLineString
             shape=QgsWkbTypes.Polygon
             fields=  QgsFields()      
             fields.append(QgsField("Id", QVariant.Int,'integer', 9, 0))
+            fields.append(QgsField("Node1", QVariant.Int,'integer',11,0))
+            fields.append(QgsField("Node2", QVariant.Int,'integer',11,0))
+            fields.append(QgsField("Node3", QVariant.Int,'integer',11,0))
+            fields.append(QgsField("Node4", QVariant.Int,'integer',11,0))
             fields.append(QgsField("type", QVariant.Int,'integer', 1, 0))
             fields.append(QgsField("area", QVariant.Int,'integer', 9, 0))
             fields.append(QgsField("resolution", QVariant.Int,'integer', 9, 0))
@@ -267,6 +272,8 @@ class Mesh(object) :
                     point.setY(self.y[edge])
                     newFeature = QgsFeature()
                     newFeature.setGeometry(QgsGeometry.fromPointXY(point))
+                    newFeature.setFields(fields)
+                    newFeature.setAttributes([int(edge+1)])
                     fileWriter.addFeature(newFeature)
 
         if shape_type=='faces':
@@ -286,7 +293,7 @@ class Mesh(object) :
                 newFeature = QgsFeature()
                 newFeature.setGeometry(QgsGeometry.fromPolygonXY([points]))
                 newFeature.setFields(fields)
-                newFeature.setAttributes([int(ie+1),int(nface),float('%9.f' % self.areas[ie]),float('%9.f' % self.res[ie])])
+                newFeature.setAttributes([int(ie+1),int(self.faces[ie,0]+1),int(self.faces[ie,1]+1),int(self.faces[ie,2]+1),int(self.faces[ie,3]+1),int(nface),float('%9.f' % self.areas[ie]),float('%9.f' % self.res[ie])])
                 fileWriter.addFeature(newFeature)
 
 
@@ -326,3 +333,4 @@ class Mesh(object) :
         CFL=calculate_CFL(De,A,dt)
 
         return CFL
+
