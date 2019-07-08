@@ -635,21 +635,109 @@ class qgmesh:
 
     def refresh_mesh(self):
         proj = QgsProject.instance()
+        path_absolute = '/tmp/'
+        G=proj.layerTreeRoot().findGroup('Mesh')
+        if not hasattr(self,'mesh'):
+            self.mesh=Mesh([],[],[],[])
+            face_change=True
+            new_mesh=True
+            bnd_changed=True
 
+        else:
+            face_change=False
+            new_mesh=False
+
+        self.mesh.physical={}
+        self.mesh.physical['ocean']=np.array([1,1])
+        self.mesh.physical['coast']=np.array([2,1])
+        self.mesh.physical['river']=np.array([3,1])
+        self.mesh.physical['island']=np.array([4,1])
+        self.mesh.edges=[]
+        self.mesh.physicalID=[]
+            
+        proj = QgsProject.instance()
+        
         for child in proj.layerTreeRoot().findGroups():        
             if child.name() == 'Mesh':
+                G=child
                 for sub_subChild in child.children():
                     layer = proj.mapLayer(sub_subChild.layerId())
+
                     if layer.name()=='Nodes':
                         idx = layer.fields().indexFromName('Depth')
+                        if new_mesh:
+                            self.mesh.x=np.ones(layer.featureCount())*-1.
+                            self.mesh.y=np.ones(layer.featureCount())*-1.
+                            self.mesh.z=np.ones(layer.featureCount())*-1.
+
                         for node in layer.getFeatures():
                             nodeID = node.attribute(0)-1
                             geom = node.geometry().asPoint()
                             dep = node.attribute(idx)
+
+                            if self.mesh.x[nodeID]!=geom[0] or self.mesh.y[nodeID]!=geom[1]:
+                                face_change=True
+
                             self.mesh.z[nodeID]=dep
                             self.mesh.x[nodeID]=geom[0]
                             self.mesh.y[nodeID]=geom[1]
+                        assign_bathy(layer)
 
+                    if layer.name()=='Faces' and new_mesh:
+                        self.mesh.faces=np.ones((layer.featureCount(),4),'int32')*-1
+                        idx0 = layer.fields().indexFromName('Node1')
+                        idx1 = layer.fields().indexFromName('Node2')
+                        idx2 = layer.fields().indexFromName('Node3')
+                        idx3 = layer.fields().indexFromName('Node4')
+                        for ie,face in enumerate(layer.getFeatures()):
+                            self.mesh.faces[ie,0]= face.attribute(idx0)-1
+                            self.mesh.faces[ie,1]= face.attribute(idx1)-1
+                            self.mesh.faces[ie,2]= face.attribute(idx2)-1
+                            if face.attribute(idx3)>=0:
+                                self.mesh.faces[ie,3]= face.attribute(idx3)-1
+
+                        self.mesh.faces=self.mesh.faces.astype('int')
+                        self.mesh._calculate_face_nodes()
+                        self.mesh._calculate_areas()
+                        self.mesh._calculate_res()
+
+
+
+                    if layer.name() in ['ocean','coast','river','island']:
+
+                        idx0 = layer.fields().indexFromName('Id')
+
+                        for ie,node in enumerate(layer.getFeatures()):
+                            self.mesh.edges.append(int(node.attribute(idx0)-1))
+                            self.mesh.physicalID.append(self.mesh.physical[layer.name()][0])
+
+
+                        self.mesh.edges.append(np.nan)
+                        self.mesh.physicalID.append(np.nan)
+
+
+                        
+
+        self.mesh.edges=np.array(self.mesh.edges).astype('int32')
+        self.mesh.physicalID=np.array(self.mesh.physicalID).astype('int32')
+
+
+
+
+        if face_change:
+            self.mesh.writeShapefile(os.path.join(path_absolute,'new_grid_faces'),'faces')
+            QThread.sleep(1)
+            vlayer = QgsVectorLayer(os.path.join(path_absolute,'new_grid_faces.shp'), "Faces", "ogr")
+            QgsProject.instance().addMapLayer(vlayer,False)
+            G.addLayer(vlayer)
+
+
+        for physical in self.mesh.physical.keys():
+            if any(self.mesh.physicalID==self.mesh.physical[physical][0]):
+                self.mesh.writeShapefile(os.path.join(path_absolute,'new_grid_bnd_'+physical),'edges',physical=self.mesh.physical[physical][0])
+                vlayer = QgsVectorLayer(os.path.join(path_absolute,'new_grid_bnd_'+physical+'.shp'), physical, "ogr")
+                QgsProject.instance().addMapLayer(vlayer,False)
+                G.addLayer(vlayer)
 
 
         self.iface.messageBar().pushMessage("Info", "Mesh updated ", level=Qgis.Info)

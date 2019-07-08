@@ -85,15 +85,10 @@ def update_field(layer,fieldName,value):
 
 def assign_bathy(layer):
     classes=10
-    renderer = layer.renderer()
-    provider = layer.dataProvider()
-    idx = layer.fields().indexFromName('Depth')
-    max_val=layer.maximumValue(idx)
-    min_val=layer.minimumValue(idx)
-    symbol = QgsSymbol.defaultSymbol(layer.geometryType())
-    colDic = {'green':'#40ff00','blue':'0000ff'}
 
-    #colorRamp = QgsGradientColorRamp.create(colDic)
+    idx = layer.fields().indexFromName('Depth')
+    symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+
     defaultColorRampNames=QgsStyle().defaultStyle().colorRampNames()
     colorRamp = QgsStyle().defaultStyle().colorRamp(defaultColorRampNames[25])
 
