@@ -1,4 +1,5 @@
 import numpy as np
+from collections import OrderedDict
 
 def extension():
 	return 'GR3 (*.gr3);'
