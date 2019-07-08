@@ -580,26 +580,27 @@ class qgmesh:
         qfd = QFileDialog()
         path = ""
 
-        filetype=meshio.helpers.output_filetypes
-        fileext=meshio.helpers._extension_to_filetype
-        fileext = dict(map(reversed, fileext.items()))
-        fil='GR3 (*.gr3);'
-        for typ in filetype:
-            if typ in fileext:
-                fil+=typ.upper()+' (*.'+fileext[typ]+');;'
+        export_function=load_IO()
+        fil=''
+        for model in export_function:
+            fil+=export_function[model]['extension']()+';'
 
-
+       
         fname = QFileDialog.getSaveFileName(qfd, 'exprt Mesh file', path, fil)
         fname=fname[0]
+
         if fname=='':
             return
 
-        self.mesh=self.refresh_mesh()
+        filename, file_extension = os.path.splitext(fname)
+        if file_extension=='':
+            return
 
-        if not fname.endswith('.gr3'):
-            meshio.write(fname,self.mesh)
-        else:
-            self.mesh.writeUnstructuredGridSMS(fname)
+        self.mesh=self.refresh_mesh()
+        for model in export_function:
+            ext=export_function[model]['extension']()
+            if file_extension in ext :
+                export_function[model]['export'](self.mesh,fname)  
 
         self.iface.messageBar().pushMessage("Info", "%s exported " % fname, level=Qgis.Info)
 
@@ -607,13 +608,10 @@ class qgmesh:
         qfd = QFileDialog()
         path = ""
 
-        filetype=meshio.helpers.input_filetypes
-        fileext=meshio.helpers._extension_to_filetype
-        fileext = dict(map(reversed, fileext.items()))
-        fil='GR3 (*.gr3);;MSH (*.msh);;'
-        for typ in filetype:
-            if typ in fileext:
-                fil+=typ.upper()+' (*.'+fileext[typ]+');;'
+        import_function=load_IO()
+        fil=''
+        for model in import_function:
+            fil+=import_function[model]['extension']()+';'
 
 
         fname = QFileDialog.getOpenFileName(qfd, 'Import Mesh file', path, fil)
@@ -621,17 +619,23 @@ class qgmesh:
         if fname=='':
             return
 
-        if fname.endswith('.gr3'):
-            self.mesh=Mesh([],[],[],[])
-            self.mesh.ReadUnstructuredGridSMS(fname)
-            self.mesh_geofile()
-            
-            
-        else:
-            msh=meshio.read(fname)
-            self.mesh_geofile(msh=msh)
+        filename, file_extension = os.path.splitext(fname)
+        if file_extension=='':
+            return
 
-        self.iface.messageBar().pushMessage("Info", "%s imported " % fname, level=Qgis.Info)
+
+        self.mesh=Mesh([],[],[],[])
+        for model in import_function:
+            ext=import_function[model]['extension']()
+            if file_extension in ext :
+                self.mesh=import_function[model]['import'](self.mesh,fname)                     
+                self.mesh._calculate_face_nodes()
+                self.mesh._calculate_areas()
+                self.mesh._calculate_res()
+                self.mesh_geofile(msh=True)
+
+
+
 
     def refresh_mesh(self):
         proj = QgsProject.instance()
@@ -680,10 +684,10 @@ class qgmesh:
 
         self.iface.messageBar().pushMessage("Info", "Bathy interpolated to the mesh " , level=Qgis.Info)
 
-    def mesh_geofile(self,msh=None):
+    def mesh_geofile(self,msh=True):
         path_absolute = QgsProject.instance().readPath('./')
 
-        if msh == 'None':
+        if not msh:
             main=RunGmshDialog(self.geo)
             main.show()
 

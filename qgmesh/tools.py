@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QApplication,QVBoxLayout,QHBoxLayout,QPushButton,QDi
 from PyQt5.QtGui import QIcon,QColor
 from qgis.gui import QgsProjectionSelectionTreeWidget
 from qgis.core import *
-import sys,os
+import sys,os,glob
 import numpy as np
 from PyQt5 import QtWidgets
 import struct
@@ -14,7 +14,27 @@ from datetime import datetime
 from qgis.utils import iface
 from collections import OrderedDict
 
+plugin_folder=os.path.join(os.path.dirname(__file__),'IO')
+sys.path.append(plugin_folder)
 
+
+def load_IO():
+
+    list_of_files = glob.glob(os.path.join(plugin_folder,'*IO.py'))
+
+
+    import_function={}
+
+    for file in list_of_files:
+        filename=os.path.split(file)[-1].strip('.py')
+        imp = __import__(filename)
+        import_function[filename]={}
+        import_function[filename]['extension']=getattr(imp, 'extension')
+        import_function[filename]['import']=getattr(imp, 'import_file')
+        import_function[filename]['export']=getattr(imp, 'export_file')
+
+
+    return import_function
 
 def get_format_from_gmsh(mesh):
     tot=0
