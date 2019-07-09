@@ -43,6 +43,7 @@ class RunGmshDialog(QtWidgets.QDialog) :
         self.killBtn.clicked.connect(self.killp)
         self.geo=geo.geo
         self.msh=None
+        self.extra_gmsh_arguments=geo.extra_gmsh_arguments
 
 
 

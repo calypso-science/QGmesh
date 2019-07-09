@@ -53,6 +53,22 @@ def calculate_CFL(depth,A,dt):
 def calculate_distances(a,b):
     L=np.sqrt(abs(a[0]-b[0])**2+abs(a[1]-b[1])**2)
     return L
+def _angleBetween(ab, ac):
+    v1_u = ab / np.linalg.norm(ab)
+    v2_u = ac / np.linalg.norm(ac)
+    angle = np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+    return np.degrees(angle)
+
+def _calculate_angles(a,b,c):
+    ab = b - a
+    ac = c - a
+    bc = c - b
+    alpha = _angleBetween(ab, ac)
+    beta = _angleBetween(-ab, bc)
+    gamma = _angleBetween(-ac, -bc)
+    assert np.allclose(gamma, 180.0 - alpha - beta)
+
+    return alpha, beta, gamma
 
 class Mesh(object) :
 
@@ -77,15 +93,42 @@ class Mesh(object) :
             self._remove_hanging_nodes()
             self._calculate_areas()
             self._calculate_res()
+            self._calculate_eta()
+            self._calculate_nsr()
+       #     self._minimumAngle()
+
+    def _minimumAngle(self):
+        self.min_angle=np.ones(len(self.faces))*0.
+        for face in range(0,len(self.faces)):
+            if self.faces[face,-1]<0:
+                a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
+                b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+                c=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+                self.min_angle[face]=np.min(_calculate_angles(a,b,c)) / 60.
 
     
+    def _calculate_nsr(self):
+        self.nsr=np.ones(len(self.faces))*0.
+        for face in range(0,len(self.faces)):
+            if self.faces[face,-1]<0:
+                a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
+                b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+                c=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
+                l1=calculate_distances(a,b)
+                l2=calculate_distances(b,c)
+                l3=calculate_distances(c,a)
+                r = 2 * self.areas[face] / (l1 + l2 + l3)  # inradius
+                R = 0.25 * l1 * l2 * l3 / self.areas[face]  # circumradius
+                self.nsr[face]=2 * r / R
+
+         
     def _calculate_eta(self):
         self.eta=np.ones(len(self.faces))*0.
         for face in range(0,len(self.faces)):
             if self.faces[face,-1]<0:
                 a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
                 b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
-                c=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+                c=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
                 l1=calculate_distances(a,b)
                 l2=calculate_distances(b,c)
                 l3=calculate_distances(c,a)
@@ -93,22 +136,7 @@ class Mesh(object) :
                 self.eta[face]=4 * np.sqrt(3) * self.areas[face] / (l1**2+l2**2+l3**2)
         
 
-    # def _calculate_angles(self):
-    #     self.areas=np.ones(len(self.faces))*0.
-    #     for face in range(0,len(self.faces)):
-    #         if self.faces[face,-1]<0:
-    #             a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
-    #             b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
-    #             c=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
-    #             ab = b - a
-    #             ac = c - a
-    #             bc = c - b
-    #             alpha = _angleBetween(ab, ac)
-    #             beta = _angleBetween(-ab, bc)
-    #             gamma = _angleBetween(-ac, -bc)
-    #             assert np.allclose(gamma, 180.0 - alpha - beta)
 
-    #     return alpha, beta, gamma
 
     def _calculate_res(self):
         self.res=2*np.sqrt(self.areas/np.pi)
@@ -281,6 +309,10 @@ class Mesh(object) :
             fields.append(QgsField("type", QVariant.Int,'integer', 1, 0))
             fields.append(QgsField("area", QVariant.Int,'integer', 9, 0))
             fields.append(QgsField("resolution", QVariant.Int,'integer', 9, 0))
+            fields.append(QgsField("ETA", QVariant.Double,'double', 3, 2))
+            fields.append(QgsField("NSR", QVariant.Double,'double', 3, 2))
+            #fields.append(QgsField("Angle", QVariant.Int,'integer', 3, 0))
+
 
 
         fileWriter = QgsVectorFileWriter(filename,
@@ -332,7 +364,11 @@ class Mesh(object) :
                 newFeature = QgsFeature()
                 newFeature.setGeometry(QgsGeometry.fromPolygonXY([points]))
                 newFeature.setFields(fields)
-                newFeature.setAttributes([int(ie+1),int(self.faces[ie,0]+1),int(self.faces[ie,1]+1),int(self.faces[ie,2]+1),int(self.faces[ie,3]+1),int(nface),float('%9.f' % self.areas[ie]),float('%9.f' % self.res[ie])])
+                newFeature.setAttributes([int(ie+1),\
+                    int(self.faces[ie,0]+1),int(self.faces[ie,1]+1),int(self.faces[ie,2]+1),int(self.faces[ie,3]+1),\
+                    int(nface),\
+                    float('%9.f' % self.areas[ie]),float('%9.f' % self.res[ie]),\
+                    float('%3.2f' % self.eta[ie]),float('%3.2f' % self.nsr[ie])])#,int(self.min_angle[ie])])
                 fileWriter.addFeature(newFeature)
 
 

@@ -632,6 +632,9 @@ class qgmesh:
                 self.mesh._calculate_face_nodes()
                 self.mesh._calculate_areas()
                 self.mesh._calculate_res()
+                self.mesh._calculate_eta()
+                self.mesh._calculate_nsr()
+
                 self.mesh_geofile(msh=True)
 
 
@@ -701,6 +704,8 @@ class qgmesh:
                         self.mesh._calculate_face_nodes()
                         self.mesh._calculate_areas()
                         self.mesh._calculate_res()
+                        self.mesh._calculate_eta()
+                        self.mesh._calculate_nsr()
 
 
 
@@ -836,7 +841,7 @@ class qgmesh:
         for child in proj.layerTreeRoot().findGroups():        
             if child.name() in ['Boundaries','Islands','Channels','Corners']:
                 if child.name()=='Boundaries':
-                    self.extra_gmsh_arguments=child.customProperty('wmsAbstract').split(',')
+                    self.geo.extra_gmsh_arguments=child.customProperty('wmsAbstract').split(',')
 
                 grid_type=child.customProperty('grid type')
                 for sub_subChild in child.children():
