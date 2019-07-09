@@ -115,7 +115,7 @@ class RunGmshDialog(QtWidgets.QDialog) :
 
         try:
 
-            self.msh=pygmsh.generate_mesh(self.geo,extra_gmsh_arguments=['-2','-algo','front2d','-epslc1d','1e-3'])
+            self.msh=pygmsh.generate_mesh(self.geo,extra_gmsh_arguments=self.extra_gmsh_arguments)
             self.closeBtn.show()
             self.onFinished(0)
             self.runBtn.hide()

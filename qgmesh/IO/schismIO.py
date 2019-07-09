@@ -40,6 +40,9 @@ def import_file(mesh, fname):
         mesh.physical={}
         mesh.physical['ocean']=np.array([1,1])
         mesh.physical['coast']=np.array([2,1])
+        mesh.physical['island']=np.array([3,1])
+        mesh.physical['river']=np.array([4,1])
+
         for n_open in range(n_open_boundaries):
             if n_open==0:
                 f.readline()
@@ -57,14 +60,16 @@ def import_file(mesh, fname):
         for n_land in range(n_land_boundaries):
             if n_land==0:
                 f.readline()
-            nodes=int(f.readline().strip().split(None,1)[0])  
+
+            nodes,ty=f.readline().strip().split(None,2)
+            nodes=int(nodes)  
        
             for node in range(0,nodes):
                 mesh.edges.append(int(f.readline().strip().split(None,1)[0]))
-                mesh.physicalID.append(2)
+                mesh.physicalID.append(2+int(ty))
 
-            mesh.edges.append(np.nan)
-            mesh.physicalID.append(np.nan)
+            mesh.edges.append(0)
+            mesh.physicalID.append(0)
             
         f.close()   
 

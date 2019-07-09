@@ -639,7 +639,8 @@ class qgmesh:
 
     def refresh_mesh(self):
         proj = QgsProject.instance()
-        path_absolute = '/tmp/'
+        #path_absolute = '/tmp/'
+        path_absolute = QgsProject.instance().readPath('./')
         G=proj.layerTreeRoot().findGroup('Mesh')
         if not hasattr(self,'mesh'):
             self.mesh=Mesh([],[],[],[])
@@ -652,10 +653,6 @@ class qgmesh:
             new_mesh=False
 
         self.mesh.physical={}
-        self.mesh.physical['ocean']=np.array([1,1])
-        self.mesh.physical['coast']=np.array([2,1])
-        self.mesh.physical['river']=np.array([3,1])
-        self.mesh.physical['island']=np.array([4,1])
         self.mesh.edges=[]
         self.mesh.physicalID=[]
             
@@ -707,20 +704,24 @@ class qgmesh:
 
 
 
-                    if layer.name() in ['ocean','coast','river','island']:
+                    if layer.name() =='Edges':
 
                         idx0 = layer.fields().indexFromName('Id')
+                        flag = layer.fields().indexFromName('Flag')
+                        name = layer.fields().indexFromName('Name')
+
 
                         for ie,node in enumerate(layer.getFeatures()):
+                            if node.attribute(name) not in self.mesh.physical.keys():
+                                self.mesh.physical[node.attribute(name)]=np.array([node.attribute(flag),1])
+
+                            if ie>0 and node.attribute(flag)!=self.mesh.physicalID[-1]:
+                                self.mesh.edges.append(-1)
+                                self.mesh.physicalID.append(-1)                                
+
                             self.mesh.edges.append(int(node.attribute(idx0)-1))
-                            self.mesh.physicalID.append(self.mesh.physical[layer.name()][0])
+                            self.mesh.physicalID.append(node.attribute(flag))
 
-
-                        self.mesh.edges.append(np.nan)
-                        self.mesh.physicalID.append(np.nan)
-
-
-                        
 
         self.mesh.edges=np.array(self.mesh.edges).astype('int32')
         self.mesh.physicalID=np.array(self.mesh.physicalID).astype('int32')
@@ -736,12 +737,11 @@ class qgmesh:
             G.addLayer(vlayer)
 
 
-        for physical in self.mesh.physical.keys():
-            if any(self.mesh.physicalID==self.mesh.physical[physical][0]):
-                self.mesh.writeShapefile(os.path.join(path_absolute,'new_grid_bnd_'+physical),'edges',physical=self.mesh.physical[physical][0])
-                vlayer = QgsVectorLayer(os.path.join(path_absolute,'new_grid_bnd_'+physical+'.shp'), physical, "ogr")
-                QgsProject.instance().addMapLayer(vlayer,False)
-                G.addLayer(vlayer)
+        self.mesh.writeShapefile(os.path.join(path_absolute,'new_grid_bnd'),'edges')
+        vlayer = QgsVectorLayer(os.path.join(path_absolute,'new_grid_bnd.shp'), 'Edges', "ogr")
+        assign_bnd(vlayer,self.mesh.physical)
+        QgsProject.instance().addMapLayer(vlayer,False)
+        G.addLayer(vlayer)
 
 
         self.iface.messageBar().pushMessage("Info", "Mesh updated ", level=Qgis.Info)
@@ -776,6 +776,7 @@ class qgmesh:
         path_absolute = QgsProject.instance().readPath('./')
 
         if not msh:
+            self.update_geofile()
             main=RunGmshDialog(self.geo)
             main.show()
 
@@ -806,6 +807,7 @@ class qgmesh:
 
         self.mesh.writeShapefile(os.path.join(path_absolute,'new_grid_point'),'points')
         self.mesh.writeShapefile(os.path.join(path_absolute,'new_grid_faces'),'faces')
+        self.mesh.writeShapefile(os.path.join(path_absolute,'new_grid_edges'),'edges')
 
         QThread.sleep(1)
         vlayer = QgsVectorLayer(os.path.join(path_absolute,'new_grid_point.shp'), "Nodes", "ogr")
@@ -818,12 +820,12 @@ class qgmesh:
         QgsProject.instance().addMapLayer(vlayer,False)
         G.addLayer(vlayer)
 
-        for physical in self.mesh.physical.keys():
-            if any(self.mesh.physicalID==self.mesh.physical[physical][0]):
-                self.mesh.writeShapefile(os.path.join(path_absolute,'new_grid_bnd_'+physical),'edges',physical=self.mesh.physical[physical][0])
-                vlayer = QgsVectorLayer(os.path.join(path_absolute,'new_grid_bnd_'+physical+'.shp'), physical, "ogr")
-                QgsProject.instance().addMapLayer(vlayer,False)
-                G.addLayer(vlayer)
+        QThread.sleep(1)
+        vlayer = QgsVectorLayer(os.path.join(path_absolute,'new_grid_edges.shp'), "Edges", "ogr")
+        assign_bnd(vlayer,self.mesh.physical)
+        QgsProject.instance().addMapLayer(vlayer,False)
+        G.addLayer(vlayer)
+
        
     def update_geofile(self):
         proj = QgsProject.instance()
@@ -833,6 +835,9 @@ class qgmesh:
 
         for child in proj.layerTreeRoot().findGroups():        
             if child.name() in ['Boundaries','Islands','Channels','Corners']:
+                if child.name()=='Boundaries':
+                    self.extra_gmsh_arguments=child.customProperty('wmsAbstract').split(',')
+
                 grid_type=child.customProperty('grid type')
                 for sub_subChild in child.children():
                     layer = proj.mapLayer(sub_subChild.layerId())
@@ -907,6 +912,7 @@ class qgmesh:
                 
                 gr=proj.layerTreeRoot().addGroup(group)
                 gr.setCustomProperty('grid type','tetra')
+                gr.setCustomProperty('wmsAbstract','-2,-algo,front2d,-epslc1d,1e-3')
             else:
                 exists_already.append(group)
 
@@ -930,6 +936,7 @@ class qgmesh:
             if group not in childs:
                 gr=proj.layerTreeRoot().addGroup(group)
                 gr.setCustomProperty('grid type','quad')
+                gr.setCustomProperty('wmsAbstract','-2,-algo,front2d,-epslc1d,1e-3')
 
             else:
                 exists_already.append(group)
@@ -953,6 +960,7 @@ class qgmesh:
             if group not in childs:
                 gr=proj.layerTreeRoot().addGroup(group)
                 gr.setCustomProperty('grid type','transfinite')
+                gr.setCustomProperty('wmsAbstract','-2,-algo,front2d,-epslc1d,1e-3')
 
             else:
                 exists_already.append(group)

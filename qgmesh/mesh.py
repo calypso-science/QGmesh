@@ -50,6 +50,10 @@ def calculate_CFL(depth,A,dt):
     CFL=np.sqrt(np.pi*9.8*depth/(4*A))*dt
     return CFL
 
+def calculate_distances(a,b):
+    L=np.sqrt(abs(a[0]-b[0])**2+abs(a[1]-b[1])**2)
+    return L
+
 class Mesh(object) :
 
     def __init__(self,x,y,z,faces,edges=None,physical=None,physicalID=None) :
@@ -74,6 +78,37 @@ class Mesh(object) :
             self._calculate_areas()
             self._calculate_res()
 
+    
+    def _calculate_eta(self):
+        self.eta=np.ones(len(self.faces))*0.
+        for face in range(0,len(self.faces)):
+            if self.faces[face,-1]<0:
+                a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
+                b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+                c=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+                l1=calculate_distances(a,b)
+                l2=calculate_distances(b,c)
+                l3=calculate_distances(c,a)
+
+                self.eta[face]=4 * np.sqrt(3) * self.areas[face] / (l1**2+l2**2+l3**2)
+        
+
+    # def _calculate_angles(self):
+    #     self.areas=np.ones(len(self.faces))*0.
+    #     for face in range(0,len(self.faces)):
+    #         if self.faces[face,-1]<0:
+    #             a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
+    #             b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+    #             c=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+    #             ab = b - a
+    #             ac = c - a
+    #             bc = c - b
+    #             alpha = _angleBetween(ab, ac)
+    #             beta = _angleBetween(-ab, bc)
+    #             gamma = _angleBetween(-ac, -bc)
+    #             assert np.allclose(gamma, 180.0 - alpha - beta)
+
+    #     return alpha, beta, gamma
 
     def _calculate_res(self):
         self.res=2*np.sqrt(self.areas/np.pi)
@@ -212,7 +247,7 @@ class Mesh(object) :
         return G
 
 
-    def writeShapefile(self, filename,shape_type,physical=None):
+    def writeShapefile(self, filename,shape_type):
 
         if filename[-4:]!='.shp':
               filename += '.shp'
@@ -231,6 +266,9 @@ class Mesh(object) :
             shape=QgsWkbTypes.Point
             fields = QgsFields()
             fields.append(QgsField("Id", QVariant.Int,'integer', 9, 0))
+            fields.append(QgsField("Flag", QVariant.Int,'integer', 2, 0))
+            fields.append(QgsField("Name", QVariant.String,'string', 10, 0))
+
         elif shape_type == 'faces':
             #shape=QgsWkbTypes.MultiLineString
             shape=QgsWkbTypes.Polygon
@@ -265,15 +303,16 @@ class Mesh(object) :
                 fileWriter.addFeature(newFeature)
 
         if shape_type=='edges':
+            inv_map = {v[0]: k for k, v in self.physical.items()}
             for ie,edge in enumerate(self.edges):
-                if self.physicalID[ie]==physical:
-                    point = QgsPointXY()
+                point = QgsPointXY()
+                if edge>0:
                     point.setX(self.x[edge])
                     point.setY(self.y[edge])
                     newFeature = QgsFeature()
                     newFeature.setGeometry(QgsGeometry.fromPointXY(point))
                     newFeature.setFields(fields)
-                    newFeature.setAttributes([int(edge+1)])
+                    newFeature.setAttributes([int(edge+1),int(self.physicalID[ie]),inv_map[self.physicalID[ie]]])
                     fileWriter.addFeature(newFeature)
 
         if shape_type=='faces':

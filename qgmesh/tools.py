@@ -55,12 +55,12 @@ def get_format_from_gmsh(mesh):
     for ie,edge in enumerate(mesh.cells['line']):
         if ie>0:
             if mesh.cell_data['line']['gmsh:physical'][ie]!=mesh.cell_data['line']['gmsh:physical'][ie-1]:
-                unique_edges=np.array(list(OrderedDict.fromkeys(edges)))
+                unique_edges=np.array(list(OrderedDict.fromkeys(edges)),'int64')
                 Edges=np.concatenate((Edges,unique_edges))
-                Edges=np.concatenate((Edges,np.array([np.nan])))
+                Edges=np.concatenate((Edges,np.array([-1])))
                 for x in unique_edges:
                     physicalID.append(tmp[edges.index(x)])
-                physicalID.append(np.nan)
+                physicalID.append(-1)
                 edges=[]
                 tmp=[]
 
@@ -71,7 +71,6 @@ def get_format_from_gmsh(mesh):
 
 
 
-    edges=unique_edges.copy()
     triangles=np.ones((tot,4))*-1.
     if 'triangle' in mesh.cells:
         triangles[0:tri_len,0:3]=mesh.cells['triangle']
@@ -80,7 +79,7 @@ def get_format_from_gmsh(mesh):
         triangles[tri_len:tot,:]=mesh.cells['quad']
 
 
-    return triangles,edges,physicalID
+    return triangles,Edges.astype('int'),physicalID
 
 def get_layer(layer_name):
     proj = QgsProject.instance()
@@ -102,6 +101,25 @@ def update_field(layer,fieldName,value):
         layer_provider.changeAttributeValues({id:attr_value})
 
     layer.commitChanges()
+
+
+def assign_bnd(layer,physical):
+    color=['black','blue','green','yellow']
+    ranges = []
+    for i,phy in enumerate(physical.keys()):
+        if phy in ['ocean','river','island','coast']:
+            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+            symbol.setColor(QColor(color[i]))
+            rng = QgsRendererCategory(int(physical[phy][0]), symbol, phy)
+            ranges.append(rng)
+
+
+    renderer = QgsCategorizedSymbolRenderer('Flag', ranges)
+    layer.setRenderer( renderer )
+
+    layer.triggerRepaint()
+
+    return layer
 
 def assign_bathy(layer):
     classes=10
