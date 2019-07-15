@@ -66,6 +66,7 @@ def _calculate_angles(a,b,c):
     alpha = _angleBetween(ab, ac)
     beta = _angleBetween(-ab, bc)
     gamma = _angleBetween(-ac, -bc)
+
     assert np.allclose(gamma, 180.0 - alpha - beta)
 
     return alpha, beta, gamma
@@ -86,88 +87,107 @@ class Mesh(object) :
 
 
         self.nodes=np.arange(1,len(self.x)+1)
-
+        
         if len(x)>0:
             self.faces=faces.astype('int')
             self._calculate_face_nodes()
             self._remove_hanging_nodes()
-            self._calculate_areas()
-            self._calculate_res()
-            self._calculate_eta()
-            self._calculate_nsr()
-       #     self._minimumAngle()
+            self.calc_parameters()
 
-    def _minimumAngle(self):
+    def calc_parameters(self):
         self.min_angle=np.ones(len(self.faces))*0.
-        for face in range(0,len(self.faces)):
-            if self.faces[face,-1]<0:
-                a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
-                b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
-                c=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
-                self.min_angle[face]=np.min(_calculate_angles(a,b,c)) / 60.
-
-    
-    def _calculate_nsr(self):
         self.nsr=np.ones(len(self.faces))*0.
-        for face in range(0,len(self.faces)):
-            if self.faces[face,-1]<0:
-                a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
-                b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
-                c=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
-                l1=calculate_distances(a,b)
-                l2=calculate_distances(b,c)
-                l3=calculate_distances(c,a)
-                r = 2 * self.areas[face] / (l1 + l2 + l3)  # inradius
-                R = 0.25 * l1 * l2 * l3 / self.areas[face]  # circumradius
-                self.nsr[face]=2 * r / R
-
-         
-    def _calculate_eta(self):
         self.eta=np.ones(len(self.faces))*0.
+        self.res=np.ones(len(self.faces))*0.
+        self.areas=np.ones(len(self.faces))*-1.
         for face in range(0,len(self.faces)):
             if self.faces[face,-1]<0:
-                a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
-                b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
-                c=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
-                l1=calculate_distances(a,b)
-                l2=calculate_distances(b,c)
-                l3=calculate_distances(c,a)
+                ty=3
+                self.areas[face]=self._calculate_areas(face,ty)
+                self.eta[face]=self._calculate_eta(face)
+                self.nsr[face]=self._calculate_nsr(face)
 
-                self.eta[face]=4 * np.sqrt(3) * self.areas[face] / (l1**2+l2**2+l3**2)
+            else:
+                ty=4
+                self.areas[face]=self._calculate_areas(face,ty)
+            
+            self.min_angle[face]=self._minimumAngle(face,ty)
+            
+        self._calculate_res()
         
 
 
+    def _minimumAngle(self,face,ty):
+        if ty==3:      
+            a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
+            b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+            c=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
+            return np.min(_calculate_angles(a,b,c)) / 60.
+        if ty==4:
+            a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
+            b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+            c=np.array([self.x[self.faces[face,3]],self.y[self.faces[face,3]]])
+            tri1=np.min(_calculate_angles(a,b,c)) / 60.
+            a=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+            b=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
+            c=np.array([self.x[self.faces[face,3]],self.y[self.faces[face,3]]])
+            tri2=np.min(_calculate_angles(a,b,c)) / 60.
+            return np.min([tri1,tri2])            
+    
+    def _calculate_nsr(self,face):
+        a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
+        b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+        c=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
+        l1=calculate_distances(a,b)
+        l2=calculate_distances(b,c)
+        l3=calculate_distances(c,a)
+        r = 2 * self.areas[face] / (l1 + l2 + l3)  # inradius
+        R = 0.25 * l1 * l2 * l3 / self.areas[face]  # circumradius
+        return 2 * r / R
+
+         
+    def _calculate_eta(self,face):
+        
+
+        a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
+        b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+        c=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
+        l1=calculate_distances(a,b)
+        l2=calculate_distances(b,c)
+        l3=calculate_distances(c,a)
+
+        return 4 * np.sqrt(3) * self.areas[face] / (l1**2+l2**2+l3**2)
 
     def _calculate_res(self):
         self.res=2*np.sqrt(self.areas/np.pi)
 
-    def _calculate_areas(self):
-        self.areas=np.ones(len(self.faces))*-1.
+    def _calculate_areas(self,face,ty):
+        
         x=self.x
         y=self.y
-        Elems=range(0,len(self.faces))
         ref=np.zeros((len(x),1))
-
         nodes_coor = np.hstack((np.vstack([x,y]).T,ref))
 
-        for face in range(0,len(self.faces)):
-            if self.faces[face,-1]<0:
-                tri = np.zeros((1,3,3))
-                for ivert in range(3):
-                    tri[0,ivert,:]=nodes_coor[self.faces[face,ivert]] 
-                self.areas[face] = cal_tri_area(tri[0,:,0:2].reshape(1,6).transpose())
-            else:
-                tri1 = np.zeros((1,3,3))
-                tri2 = np.zeros((1,3,3))
-                for iv,ivert in enumerate([0,1,3]):
-                    tri1[0,iv,:] = nodes_coor[self.faces[face,ivert]] 
-                for iv,ivert in enumerate([1,2,3]):
-                    tri2[0,iv,:] = nodes_coor[self.faces[face,ivert]]
+        if ty==3:
+            tri = np.zeros((1,3,3))
+            for ivert in range(3):
+                tri[0,ivert,:]=nodes_coor[self.faces[face,ivert]] 
+            areas = cal_tri_area(tri[0,:,0:2].reshape(1,6).transpose())
 
-                a1=cal_tri_area(tri1[0,:,0:2].reshape(1,6).transpose())
-                a2=cal_tri_area(tri2[0,:,0:2].reshape(1,6).transpose())
+        elif ty==4:
+            tri1 = np.zeros((1,3,3))
+            tri2 = np.zeros((1,3,3))
+            for iv,ivert in enumerate([0,1,3]):
+                tri1[0,iv,:] = nodes_coor[self.faces[face,ivert]] 
+            for iv,ivert in enumerate([1,2,3]):
+                tri2[0,iv,:] = nodes_coor[self.faces[face,ivert]]
 
-                self.areas[face] = a1+a2
+            a1=cal_tri_area(tri1[0,:,0:2].reshape(1,6).transpose())
+            a2=cal_tri_area(tri2[0,:,0:2].reshape(1,6).transpose())
+
+            areas[face] = a1+a2
+
+        return areas
 
 
     def _calculate_face_nodes(self):

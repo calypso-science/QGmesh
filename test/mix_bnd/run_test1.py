@@ -19,14 +19,15 @@ from netCDF4 import Dataset
 import numpy as np
 from collections import OrderedDict
 from tools import get_format_from_gmsh
+from IO.schismIO import import_file
 
-
-#Mesh=Mesh([],[],[],[])
-#Mesh.ReadUnstructuredGridSMS('/home/remy/Software/QGmesh/test/mix_bnd/hgrid.gr3')
+me=Mesh([],[],[],[])
+me=import_file(me,'/home/remy/Buisness/hgrid.gr3')
+me.calc_parameters()
 # Mesh.to_Gridshapefile('new_grid')
-msh=meshio.read('/home/remy/Software/QGmesh/test/mix_bnd/new_grid.msh')
+#msh=meshio.read('/home/remy/Software/QGmesh/test/mix_bnd/new_grid.msh')
 
-triangles,edges,physicalID=get_format_from_gmsh(msh)
+#triangles,edges,physicalID=get_format_from_gmsh(msh)
 
 # mesh=Mesh(msh.points[:,0],msh.points[:,1],msh.points[:,2],triangles,edges=edges,physical=msh.field_data,physicalID=physicalID)
 import pdb;pdb.set_trace()

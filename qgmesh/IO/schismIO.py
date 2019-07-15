@@ -61,7 +61,13 @@ def import_file(mesh, fname):
             if n_land==0:
                 f.readline()
 
-            nodes,ty=f.readline().strip().split(None,2)
+
+            tmp=f.readline().strip().split(None,2)
+            nodes=tmp[0]
+            ty=tmp[1]
+
+            if ty.endswith('='):
+                ty=ty.replace('=','')
             nodes=int(nodes)  
        
             for node in range(0,nodes):
