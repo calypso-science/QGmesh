@@ -20,15 +20,19 @@ class EmittingStream(QObject):
 
 class RunSCHISMDialog(QtWidgets.QDialog) :
 
-    def __init__(self, parent=None) :
+    def __init__(self,shapefiles=None, parent=None) :
 
         super(RunSCHISMDialog, self).__init__(parent)
-        self.setWindowTitle("Running SCHISM test")
+        self.setWindowTitle("Cleaning trimesh grid")
         layout = QtWidgets.QVBoxLayout()
         self.root='/home/remy/Software/QGmesh/test/test_schism'
         self.textWidget = QtWidgets.QPlainTextEdit()
         self.textWidget.setReadOnly(True)
         layout.addWidget(self.textWidget)
+        self.ShapefileSelector = QtWidgets.QListWidget()
+        self.ShapefileSelector.addItems(shapefiles)
+
+
         hlayout = QtWidgets.QHBoxLayout()
         layout.addLayout(hlayout)
         hlayout.addStretch(1)
@@ -89,11 +93,11 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
         if self.killed :
             return
         if state == QProcess.FailedToStart :
-            self.log("Cannot start SCHISM executable : " + self.args[0], "red")
+            self.log("Cannot start nicegrid2: " + self.args[0], "red")
         elif state == QProcess.Crashed :
-            self.log("SCHISM crashed.", "red")
+            self.log("nicegrid2 crashed.", "red")
         else :
-            self.log("Unkown SCHISM error.", "red")
+            self.log("Unkown nicegrid2 error.", "red")
 
     def exec_(self, args) :
         self.p = QProcess()

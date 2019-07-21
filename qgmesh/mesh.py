@@ -104,13 +104,13 @@ class Mesh(object) :
             if self.faces[face,-1]<0:
                 ty=3
                 self.areas[face]=self._calculate_areas(face,ty)
-                self.eta[face]=self._calculate_eta(face)
                 self.nsr[face]=self._calculate_nsr(face)
 
             else:
                 ty=4
                 self.areas[face]=self._calculate_areas(face,ty)
-            
+
+            self.eta[face]=self._calculate_eta(face,ty)
             self.min_angle[face]=self._minimumAngle(face,ty)
             
         self._calculate_res()
@@ -145,18 +145,68 @@ class Mesh(object) :
         R = 0.25 * l1 * l2 * l3 / self.areas[face]  # circumradius
         return 2 * r / R
 
-         
-    def _calculate_eta(self,face):
-        
 
-        a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
-        b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
-        c=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
+    def _calculate_q(A,a,b,c):
         l1=calculate_distances(a,b)
         l2=calculate_distances(b,c)
         l3=calculate_distances(c,a)
+        return 4 * np.sqrt(3) * A / (l1**2+l2**2+l3**2)        
+         
+    def _calculate_eta(self,face,ty):
+        
 
-        return 4 * np.sqrt(3) * self.areas[face] / (l1**2+l2**2+l3**2)
+        if ty==3:
+            a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
+            b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+            c=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
+            eta=self._calculate_q(self.areas[face],a,b,c)
+
+        elif ty==4:
+            tri1 = np.zeros((1,3,3))
+            tri2 = np.zeros((1,3,3))
+            tri3 = np.zeros((1,3,3))
+            tri4 = np.zeros((1,3,3))
+            x=self.x
+            y=self.y
+            ref=np.zeros((len(x),1))
+            nodes_coor = np.hstack((np.vstack([x,y]).T,ref))
+
+            a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
+            b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+            c=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
+            for iv,ivert in enumerate([0,1,2]):
+                tri1[0,iv,:] = nodes_coor[self.faces[face,ivert]]
+            A=cal_tri_area(tri1[0,:,0:2].reshape(1,6).transpose())
+            q1=self._calculate_q(A,a,b,c) #A,B,C
+
+            a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
+            b=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
+            c=np.array([self.x[self.faces[face,3]],self.y[self.faces[face,3]]])
+            for iv,ivert in enumerate([0,2,3]):
+                tri2[0,iv,:] = nodes_coor[self.faces[face,ivert]]
+            A=cal_tri_area(tri2[0,:,0:2].reshape(1,6).transpose())
+            q2=self._calculate_q(A,a,b,c) #A,B,C
+
+            
+            a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
+            b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+            c=np.array([self.x[self.faces[face,3]],self.y[self.faces[face,3]]])
+            for iv,ivert in enumerate([0,1,3]):
+                tri3[0,iv,:] = nodes_coor[self.faces[face,ivert]]
+            A=cal_tri_area(tri3[0,:,0:2].reshape(1,6).transpose())
+            q3=self._calculate_q(A,a,b,c) #A,B,C
+
+            a=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
+            b=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
+            c=np.array([self.x[self.faces[face,3]],self.y[self.faces[face,3]]])
+            for iv,ivert in enumerate([1,2,3]):
+                tri4[0,iv,:] = nodes_coor[self.faces[face,ivert]]
+            A=cal_tri_area(tri4[0,:,0:2].reshape(1,6).transpose())
+            q4=self._calculate_q(A,a,b,c) #A,B,C
+
+            eta=(0.86602540-np.abs((q1+q2+q3+q4)/4 - 0.86602540))/0.86602540
+
+        return eta
 
     def _calculate_res(self):
         self.res=2*np.sqrt(self.areas/np.pi)

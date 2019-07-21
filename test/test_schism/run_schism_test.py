@@ -16,5 +16,5 @@ qgs.initQgis()
 from qgis.utils import iface
 print(dir(iface))
 rundia = RunSCHISMDialog()
-args = ["/home/remy/Software/QGmesh/test/test_schism/pschism_rz2_HYDRO_VL"]
+args = ["/home/remy/Software/QGmesh/"]
 rundia.exec_(args)

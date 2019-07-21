@@ -354,6 +354,17 @@ class qgmesh:
 
         self.menu_mesh.addAction(get_CFL)
 
+        nicegrid=self.add_action(
+            icon_path,
+            text=self.tr(u'Clean FEM mesh'),
+            callback=self.nicegrid,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip="Clean a mesh",
+            whats_this="This will clean the mesh")
+
+        self.menu_mesh.addAction(nicegrid)
 
         self.menu.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.menu_mesh)
 
@@ -638,7 +649,21 @@ class qgmesh:
                 self.mesh_geofile(msh=True)
 
 
+    def nicegrid(self):
 
+    proj = QgsProject.instance()
+    raster=[]
+    for child in proj.layerTreeRoot().findLayers():   
+        layer = proj.mapLayer(child.layerId())     
+        if layer.type()==QgsMapLayer.VectorLayer:
+            shapefile.append(layer.name())
+    
+    run_cleaner = RunSCHISMDialog()
+    args = ["/home/remy/Software/QGmesh/nicegrid2"]
+    if not os.path.file(args[0]):
+        os.system('gfortran -o nicegrid2 nicegrid2.f90')
+        
+    run_cleaner.exec_(args,shapefiles)
 
     def refresh_mesh(self):
         proj = QgsProject.instance()

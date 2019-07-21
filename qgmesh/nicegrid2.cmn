@@ -1,0 +1,23 @@
+!	module nicegrid2.cmn
+
+!-----------------------------------------------------------------------
+!
+!	AUTHOR:		Andre' Fortunato - 2018-06-18
+!
+!	PURPOSE:	parameters used in program nicegrid2
+!			MXNOD: max number of nodes
+!			MXEL:  max number of elements
+!			MNBOU: max number of boundaries
+!			MNEI:  max number of connected nodes per node
+!			NEBND: max number of nodes per boundary
+!
+!-----------------------------------------------------------------------
+
+	implicit none
+	integer*4	MXNOD,MXEL,MNBOU,MNEI,NEBND,NBND
+
+	parameter	(MXNOD	= 550000)
+	parameter	(MXEL	= 2*MXNOD)
+	parameter	(MNBOU  = 150)
+	parameter	(MNEI	= 12)
+        parameter       (NEBND  = 10000)
