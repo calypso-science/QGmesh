@@ -651,19 +651,31 @@ class qgmesh:
 
     def nicegrid(self):
 
-    proj = QgsProject.instance()
-    raster=[]
-    for child in proj.layerTreeRoot().findLayers():   
-        layer = proj.mapLayer(child.layerId())     
-        if layer.type()==QgsMapLayer.VectorLayer:
-            shapefile.append(layer.name())
-    
-    run_cleaner = RunSCHISMDialog()
-    args = ["/home/remy/Software/QGmesh/nicegrid2"]
-    if not os.path.file(args[0]):
-        os.system('gfortran -o nicegrid2 nicegrid2.f90')
+        proj = QgsProject.instance()
+        shapefile=[]
+        meshfiles=[]
         
-    run_cleaner.exec_(args,shapefiles)
+        for child in proj.layerTreeRoot().findLayers():   
+            layer = proj.mapLayer(child.layerId())     
+            if layer.type()==QgsMapLayer.VectorLayer:
+                shapefile.append(layer.name())
+
+
+        for child in proj.layerTreeRoot().findGroups():        
+            if child.name() is 'Mesh':
+                layer = proj.mapLayer(child.layerId())
+                meshfiles.append(layer.name())
+
+
+        run_cleaner = RunSCHISMDialog(meshfiles,shapefile)
+        root=os.path.dirname(__file__)
+        nicegrid=os.path.join(root,'nicegrid2')
+        if not os.path.file(nicegrid):
+            os.system('gfortran -o %s %s' %(nicegrid,os.path.join(root,'nicegrid2.f90')))
+            self.iface.messageBar().pushMessage("Info", "NCIEGRID2 not found and compiled. ", level=Qgis.Info)
+            
+
+        run_cleaner.exec_()
 
     def refresh_mesh(self):
         proj = QgsProject.instance()

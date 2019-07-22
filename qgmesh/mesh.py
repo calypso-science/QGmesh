@@ -45,7 +45,12 @@ def bilinear(px, py,gt,band_array, no_data=np.nan):
 def cal_tri_area(a):
     return np.absolute((a[0]*(a[3]-a[5])+a[2]*(a[5]-a[1])+a[4]*(a[1]-a[3]))/2.0)
 
-     
+def calculate_q(A,a,b,c):
+    l1=calculate_distances(a,b)
+    l2=calculate_distances(b,c)
+    l3=calculate_distances(c,a)
+    return 4 * np.sqrt(3) * A / (l1**2+l2**2+l3**2)   
+
 def calculate_CFL(depth,A,dt):
     CFL=np.sqrt(np.pi*9.8*depth/(4*A))*dt
     return CFL
@@ -94,11 +99,14 @@ class Mesh(object) :
             self._remove_hanging_nodes()
             self.calc_parameters()
 
+
+
     def calc_parameters(self):
         self.min_angle=np.ones(len(self.faces))*0.
         self.nsr=np.ones(len(self.faces))*0.
         self.eta=np.ones(len(self.faces))*0.
         self.res=np.ones(len(self.faces))*0.
+        
         self.areas=np.ones(len(self.faces))*-1.
         for face in range(0,len(self.faces)):
             if self.faces[face,-1]<0:
@@ -114,8 +122,24 @@ class Mesh(object) :
             self.min_angle[face]=self._minimumAngle(face,ty)
             
         self._calculate_res()
+        self._calculate_connection()
         
 
+    def _calculate_connection(self):
+        conn1=np.ones(len(self.x))*0
+        conn2=np.ones(len(self.x))*0
+        conn3=np.ones(len(self.x))*0
+        conn4=np.ones(len(self.x))*0
+        f0=np.unique(self.faces[:,0],return_counts=True)
+        conn1[f0[0]]=f0[1]
+        f1=np.unique(self.faces[:,1],return_counts=True)
+        conn1[f1[0]]=f1[1]
+        f3=np.unique(self.faces[:,3],return_counts=True)
+        gd=f3[0]>=0
+        if np.any(gd):
+            conn4[f3[0][gd]]=f3[1][gd]
+
+        self.conn=conn1+conn2+conn3+conn4
 
     def _minimumAngle(self,face,ty):
         if ty==3:      
@@ -146,11 +170,7 @@ class Mesh(object) :
         return 2 * r / R
 
 
-    def _calculate_q(A,a,b,c):
-        l1=calculate_distances(a,b)
-        l2=calculate_distances(b,c)
-        l3=calculate_distances(c,a)
-        return 4 * np.sqrt(3) * A / (l1**2+l2**2+l3**2)        
+     
          
     def _calculate_eta(self,face,ty):
         
@@ -159,7 +179,7 @@ class Mesh(object) :
             a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
             b=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
             c=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
-            eta=self._calculate_q(self.areas[face],a,b,c)
+            eta=calculate_q(self.areas[face],a,b,c)
 
         elif ty==4:
             tri1 = np.zeros((1,3,3))
@@ -177,7 +197,7 @@ class Mesh(object) :
             for iv,ivert in enumerate([0,1,2]):
                 tri1[0,iv,:] = nodes_coor[self.faces[face,ivert]]
             A=cal_tri_area(tri1[0,:,0:2].reshape(1,6).transpose())
-            q1=self._calculate_q(A,a,b,c) #A,B,C
+            q1=calculate_q(A,a,b,c) #A,B,C
 
             a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
             b=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
@@ -185,7 +205,7 @@ class Mesh(object) :
             for iv,ivert in enumerate([0,2,3]):
                 tri2[0,iv,:] = nodes_coor[self.faces[face,ivert]]
             A=cal_tri_area(tri2[0,:,0:2].reshape(1,6).transpose())
-            q2=self._calculate_q(A,a,b,c) #A,B,C
+            q2=calculate_q(A,a,b,c) #A,B,C
 
             
             a=np.array([self.x[self.faces[face,0]],self.y[self.faces[face,0]]])
@@ -194,7 +214,7 @@ class Mesh(object) :
             for iv,ivert in enumerate([0,1,3]):
                 tri3[0,iv,:] = nodes_coor[self.faces[face,ivert]]
             A=cal_tri_area(tri3[0,:,0:2].reshape(1,6).transpose())
-            q3=self._calculate_q(A,a,b,c) #A,B,C
+            q3=calculate_q(A,a,b,c) #A,B,C
 
             a=np.array([self.x[self.faces[face,1]],self.y[self.faces[face,1]]])
             b=np.array([self.x[self.faces[face,2]],self.y[self.faces[face,2]]])
@@ -202,7 +222,7 @@ class Mesh(object) :
             for iv,ivert in enumerate([1,2,3]):
                 tri4[0,iv,:] = nodes_coor[self.faces[face,ivert]]
             A=cal_tri_area(tri4[0,:,0:2].reshape(1,6).transpose())
-            q4=self._calculate_q(A,a,b,c) #A,B,C
+            q4=calculate_q(A,a,b,c) #A,B,C
 
             eta=(0.86602540-np.abs((q1+q2+q3+q4)/4 - 0.86602540))/0.86602540
 
@@ -359,8 +379,9 @@ class Mesh(object) :
             fields=  QgsFields()      
             fields.append(QgsField("Id", QVariant.Int,'integer', 9, 0))
             fields.append(QgsField("Depth", QVariant.Double,'double', 9, 3))
+            fields.append(QgsField("Connect", QVariant.Int,'integer', 2, 0))
+
         elif shape_type == 'edges':
-            #shape=QgsWkbTypes.MultiLineString
             shape=QgsWkbTypes.Point
             fields = QgsFields()
             fields.append(QgsField("Id", QVariant.Int,'integer', 9, 0))
@@ -368,7 +389,6 @@ class Mesh(object) :
             fields.append(QgsField("Name", QVariant.String,'string', 10, 0))
 
         elif shape_type == 'faces':
-            #shape=QgsWkbTypes.MultiLineString
             shape=QgsWkbTypes.Polygon
             fields=  QgsFields()      
             fields.append(QgsField("Id", QVariant.Int,'integer', 9, 0))
@@ -381,7 +401,7 @@ class Mesh(object) :
             fields.append(QgsField("resolution", QVariant.Int,'integer', 9, 0))
             fields.append(QgsField("ETA", QVariant.Double,'double', 3, 2))
             fields.append(QgsField("NSR", QVariant.Double,'double', 3, 2))
-            #fields.append(QgsField("Angle", QVariant.Int,'integer', 3, 0))
+            fields.append(QgsField("Angle", QVariant.Int,'integer', 3, 0))
 
 
 
@@ -401,7 +421,7 @@ class Mesh(object) :
                 newFeature = QgsFeature()
                 newFeature.setGeometry(QgsGeometry.fromPointXY(point))
                 newFeature.setFields(fields)
-                newFeature.setAttributes([int(node+1),float('%9.3f' % self.z[node])])
+                newFeature.setAttributes([int(node+1),float('%9.3f' % self.z[node]),int(self.conn[node])])
                 fileWriter.addFeature(newFeature)
 
         if shape_type=='edges':
@@ -438,7 +458,7 @@ class Mesh(object) :
                     int(self.faces[ie,0]+1),int(self.faces[ie,1]+1),int(self.faces[ie,2]+1),int(self.faces[ie,3]+1),\
                     int(nface),\
                     float('%9.f' % self.areas[ie]),float('%9.f' % self.res[ie]),\
-                    float('%3.2f' % self.eta[ie]),float('%3.2f' % self.nsr[ie])])#,int(self.min_angle[ie])])
+                    float('%3.2f' % self.eta[ie]),float('%3.2f' % self.nsr[ie]),int(self.min_angle[ie])])
                 fileWriter.addFeature(newFeature)
 
 

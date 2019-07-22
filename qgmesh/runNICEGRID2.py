@@ -4,6 +4,7 @@ from PyQt5 import QtWidgets
 from qgis.core import QgsProject
 import shlex
 import os,sys
+import tools
 
 
 class EmittingStream(QObject):
@@ -20,23 +21,45 @@ class EmittingStream(QObject):
 
 class RunSCHISMDialog(QtWidgets.QDialog) :
 
-    def __init__(self,shapefiles=None, parent=None) :
+    def __init__(self,meshfiles=None,shapefiles=None, parent=None) :
 
         super(RunSCHISMDialog, self).__init__(parent)
         self.setWindowTitle("Cleaning trimesh grid")
+       
         layout = QtWidgets.QVBoxLayout()
-        self.root='/home/remy/Software/QGmesh/test/test_schism'
+
+        self.MeshSelector = QtWidgets.QListWidget()
+        self.MeshSelector.addItems(meshfiles)
+        tools.TitleLayout("Select Mesh to edit", self.MeshSelector, layout)
+        layout.addWidget(self.MeshSelector)
+        
+
+        self.ShapefileSelector = QtWidgets.QListWidget()
+        self.ShapefileSelector.addItems(shapefiles)
+        tools.TitleLayout("Select node shapefile to edit", self.ShapefileSelector, layout)
+        layout.addWidget(self.ShapefileSelector)
+        
+
+        self.algoSelector = QtWidgets.QComboBox(self)
+        self.algoSelector.addItem("do not change boundary", "0")
+        self.algoSelector.addItem("correct boundary as well", "1")
+        self.algoSelector.addItem("correct and adjust boundary", "2")
+        tools.TitleLayout("Boundary options", self.algoSelector, layout)
+
+        
         self.textWidget = QtWidgets.QPlainTextEdit()
         self.textWidget.setReadOnly(True)
         layout.addWidget(self.textWidget)
-        self.ShapefileSelector = QtWidgets.QListWidget()
-        self.ShapefileSelector.addItems(shapefiles)
 
-
+       
         hlayout = QtWidgets.QHBoxLayout()
         layout.addLayout(hlayout)
         hlayout.addStretch(1)
-       
+        self.runBtn = QtWidgets.QPushButton("Clean")
+        self.runBtn.clicked.connect(self.clean)
+        self.runBtn.show()
+        hlayout.addWidget(self.runBtn)
+
         self.closeBtn = QtWidgets.QPushButton("Close")
         self.closeBtn.clicked.connect(self.close)
         hlayout.addWidget(self.closeBtn)
@@ -50,6 +73,7 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
         self.p.kill()
         self.log("Killed", "red")
         self.killed = True
+        self.closeBtn.show()
 
     def onStdOut(self) :
         while self.p.canReadLine() :
@@ -99,7 +123,32 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
         else :
             self.log("Unkown nicegrid2 error.", "red")
 
+    def clean(self):
+        nicegrid2=os.path.join(os.path.dirname(__file__),'nicegrid2')
+
+        self.p.start(args[0], args[1:])
+
+    def load_file(self):
+        qfd = QFileDialog()
+        path = ""
+
+        import_function=load_IO()
+        fil=''
+        for model in import_function:
+            fil+=import_function[model]['extension']()+';'
+
+
+        fname = QFileDialog.getOpenFileName(qfd, 'Import Mesh file', path, fil)
+        fname=fname[0]
+        if fname=='':
+            return
+
+        filename, file_extension = os.path.splitext(fname)
+        if file_extension=='':
+            return
+
     def exec_(self, args) :
+        print(args)
         self.p = QProcess()
         self.p.setProcessChannelMode(QProcess.MergedChannels)
         self.p.readyReadStandardOutput.connect(self.onStdOut)
@@ -115,5 +164,4 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
         env = QProcessEnvironment.systemEnvironment()
         env.remove("TERM")
         self.p.setProcessEnvironment(env)
-        self.p.start(args[0], args[1:])
         super(RunSCHISMDialog, self).exec_()

@@ -15,6 +15,6 @@ qgs.initQgis()
 
 from qgis.utils import iface
 print(dir(iface))
-rundia = RunSCHISMDialog()
-args = ["/home/remy/Software/QGmesh/"]
+rundia = RunSCHISMDialog(['None'])
+args = ["/home/remy/Software/QGmesh/qgmesh/nicegrid2","hgrid.gr3","hgrid.out","0"]
 rundia.exec_(args)
