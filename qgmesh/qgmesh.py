@@ -639,12 +639,10 @@ class qgmesh:
         for model in import_function:
             ext=import_function[model]['extension']()
             if file_extension in ext :
-                self.mesh=import_function[model]['import'](self.mesh,fname)                     
+                self.mesh=import_function[model]['import'](self.mesh,fname)   
                 self.mesh._calculate_face_nodes()
-                self.mesh._calculate_areas()
-                self.mesh._calculate_res()
-                self.mesh._calculate_eta()
-                self.mesh._calculate_nsr()
+#                self.mesh._remove_hanging_nodes()
+                self.mesh.calc_parameters()
 
                 self.mesh_geofile(msh=True)
 

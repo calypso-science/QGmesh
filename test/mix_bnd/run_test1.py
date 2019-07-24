@@ -22,7 +22,7 @@ from tools import get_format_from_gmsh
 from IO.schismIO import import_file
 
 me=Mesh([],[],[],[])
-me=import_file(me,'/home/remy/Buisness/hgrid.gr3')
+me=import_file(me,'/home/remy/oldhome/Buisness/0236_refining/3D/hgrid.gr3')
 me.calc_parameters()
 # Mesh.to_Gridshapefile('new_grid')
 #msh=meshio.read('/home/remy/Software/QGmesh/test/mix_bnd/new_grid.msh')

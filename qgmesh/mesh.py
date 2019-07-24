@@ -72,7 +72,10 @@ def _calculate_angles(a,b,c):
     beta = _angleBetween(-ab, bc)
     gamma = _angleBetween(-ac, -bc)
 
-    assert np.allclose(gamma, 180.0 - alpha - beta)
+    try:
+        assert np.allclose(gamma, 180.0 - alpha - beta)
+    except:
+        import pdb;pdb.set_trace()
 
     return alpha, beta, gamma
 
@@ -96,7 +99,7 @@ class Mesh(object) :
         if len(x)>0:
             self.faces=faces.astype('int')
             self._calculate_face_nodes()
-            self._remove_hanging_nodes()
+            #self._remove_hanging_nodes()
             self.calc_parameters()
 
 

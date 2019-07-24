@@ -52,8 +52,8 @@ def import_file(mesh, fname):
                 mesh.edges.append(int(f.readline().strip().split(None,1)[0]))
                 mesh.physicalID.append(1)
             
-            mesh.edges.append(np.nan)
-            mesh.physicalID.append(np.nan)
+            mesh.edges.append(0)
+            mesh.physicalID.append(0)
 
 
         n_land_boundaries = int(f.readline().strip().split(None,1)[0])
