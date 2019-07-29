@@ -45,6 +45,19 @@ def bilinear(px, py,gt,band_array, no_data=np.nan):
 def cal_tri_area(a):
     return np.absolute((a[0]*(a[3]-a[5])+a[2]*(a[5]-a[1])+a[4]*(a[1]-a[3]))/2.0)
 
+def tri_area(x,y):
+    # area from x, y which are (n,3)
+    # tested in matlab version compared to polyarea.m same to to 10^-9m for  1500m^2 or larger triangles 
+    # get lengths of 3 sides for herons formula
+    # ross vennel May 2018
+    a=np.sqrt((x[:, 1]-x[:,0])**2+(y[:, 1]-y[:,0])**2)
+    b=np.sqrt((x[:, 2]-x[:,1])**2+(y[:, 2]-y[:,1])**2)
+    c=np.sqrt((x[:, 0]-x[:,2])**2+(y[:, 0]-y[:,2])**2)
+
+    s=(a+b+c)/2.0
+    A=np.sqrt(s*(s-a)*(s-b)*(s-c))
+    return A
+
 def calculate_q(A,a,b,c):
     l1=calculate_distances(a,b)
     l2=calculate_distances(b,c)
@@ -110,19 +123,15 @@ class Mesh(object) :
         self.eta=np.ones(len(self.faces))*0.
         self.res=np.ones(len(self.faces))*0.
         
-        self.areas=np.ones(len(self.faces))*-1.
-        for face in range(0,len(self.faces)):
-            if self.faces[face,-1]<0:
-                ty=3
-                self.areas[face]=self._calculate_areas(face,ty)
-                self.nsr[face]=self._calculate_nsr(face)
+        self.areas=self._calculate_areas2()
+        self.eta=self._calculate_eta2()
 
-            else:
-                ty=4
-                self.areas[face]=self._calculate_areas(face,ty)
+        # for face in range(0,len(self.faces)):
+        #     if self.faces[face,-1]<0:
+        #         ty=3
+        #         self.nsr[face]=self._calculate_nsr(face)
 
-            self.eta[face]=self._calculate_eta(face,ty)
-            self.min_angle[face]=self._minimumAngle(face,ty)
+        #     self.min_angle[face]=self._minimumAngle(face,ty)
             
         self._calculate_res()
         self._calculate_connection()
@@ -174,7 +183,59 @@ class Mesh(object) :
 
 
      
-         
+    def _calculate_eta2(self):
+
+        tri=self.faces[:,3]<0
+        quad=self.faces[:,3]>=0
+        eta=np.ones(len(self.faces))*0.
+
+        if np.any(tri):
+
+            a=np.array([self.x[self.faces[tri,0]],self.y[self.faces[tri,0]]])
+            b=np.array([self.x[self.faces[tri,1]],self.y[self.faces[tri,1]]])
+            c=np.array([self.x[self.faces[tri,2]],self.y[self.faces[tri,2]]])
+            eta[tri]=calculate_q(self.areas,a,b,c)
+
+        if np.any(quad):
+            # tri A,B,C
+            a=np.array([self.x[self.faces[quad,0]],self.y[self.faces[quad,0]]])
+            b=np.array([self.x[self.faces[quad,1]],self.y[self.faces[quad,1]]])
+            c=np.array([self.x[self.faces[quad,2]],self.y[self.faces[quad,2]]])
+            A=np.array([self.x[self.faces[quad,0]],self.x[self.faces[quad,1]],self.x[self.faces[quad,2]]])
+            B=np.array([self.y[self.faces[quad,0]],self.y[self.faces[quad,1]],self.y[self.faces[quad,2]]])
+            A1=tri_area(A,B)
+            q1=calculate_q(A1,a,b,c) #A,B,C
+
+            # tri A,C,D
+            a=np.array([self.x[self.faces[quad,0]],self.y[self.faces[quad,0]]])
+            b=np.array([self.x[self.faces[quad,2]],self.y[self.faces[quad,2]]])
+            c=np.array([self.x[self.faces[quad,3]],self.y[self.faces[quad,3]]])
+            A=np.array([self.x[self.faces[quad,0]],self.x[self.faces[quad,2]],self.x[self.faces[quad,3]]])
+            B=np.array([self.y[self.faces[quad,0]],self.y[self.faces[quad,2]],self.y[self.faces[quad,3]]])
+            A2=tri_area(A,B)
+            q2=calculate_q(A2,a,b,c) #A,B,C
+
+            # tri A,B,D
+            a=np.array([self.x[self.faces[quad,0]],self.y[self.faces[quad,0]]])
+            b=np.array([self.x[self.faces[quad,1]],self.y[self.faces[quad,1]]])
+            c=np.array([self.x[self.faces[quad,3]],self.y[self.faces[quad,3]]])
+            A=np.array([self.x[self.faces[quad,0]],self.x[self.faces[quad,1]],self.x[self.faces[quad,3]]])
+            B=np.array([self.y[self.faces[quad,0]],self.y[self.faces[quad,1]],self.y[self.faces[quad,3]]])
+            A3=tri_area(A,B)
+            q3=calculate_q(A3,a,b,c) #A,B,C
+
+            # tri B,C,D
+            a=np.array([self.x[self.faces[quad,1]],self.y[self.faces[quad,1]]])
+            b=np.array([self.x[self.faces[quad,2]],self.y[self.faces[quad,2]]])
+            c=np.array([self.x[self.faces[quad,3]],self.y[self.faces[quad,3]]])
+            A=np.array([self.x[self.faces[quad,1]],self.x[self.faces[quad,2]],self.x[self.faces[quad,3]]])
+            B=np.array([self.y[self.faces[quad,1]],self.y[self.faces[quad,2]],self.y[self.faces[quad,3]]])
+            A3=tri_area(A,B)
+            q3=calculate_q(A3,a,b,c) #B,C.D
+
+            eta[quad]=(0.86602540-np.abs((q1+q2+q3+q4)/4 - 0.86602540))/0.86602540
+
+        return eta
     def _calculate_eta(self,face,ty):
         
 
@@ -234,33 +295,85 @@ class Mesh(object) :
     def _calculate_res(self):
         self.res=2*np.sqrt(self.areas/np.pi)
 
-    def _calculate_areas(self,face,ty):
+    def _calculate_areas2(self):
+        tri=self.faces[:,3]<0
+        quad=self.faces[:,3]>=0
+        areas=np.ones(len(self.faces))*0.
+
+        if np.any(tri):
+            x0=self.faces[tri,0]
+            x1=self.faces[tri,1]
+            x2=self.faces[tri,2]
+            x=np.zeros((len(x0),3))
+            x[:,0]=self.x[x0]
+            x[:,1]=self.x[x1]
+            x[:,2]=self.x[x2]
+
+            y=np.zeros((len(x0),3))
+            y[:,0]=self.y[x0]
+            y[:,1]=self.y[x1]
+            y[:,2]=self.y[x2]
+
+            areas[tri]=tri_area(x,y)
+
+        if np.any(quad):
+            x0=self.faces[quad,0]
+            x1=self.faces[quad,1]
+            x2=self.faces[quad,2]
+            x3=self.faces[quad,3]
+
+            x1=np.zeros((len(x0),3))
+            x1[:,0]=self.x[x0]
+            x1[:,1]=self.x[x1]
+            x1[:,2]=self.x[x3]
+
+            y1=np.zeros((len(x0),3))
+            y1[:,0]=self.y[x0]
+            y1[:,1]=self.y[x1]
+            y1[:,2]=self.y[x3]
+
+            x2=np.zeros((len(x0),3))
+            x2[:,0]=self.x[x1]
+            x2[:,1]=self.x[x2]
+            x2[:,2]=self.x[x3]
+
+            y2=np.zeros((len(x0),3))
+            y2[:,0]=self.y[x1]
+            y2[:,1]=self.y[x2]
+            y2[:,2]=self.y[x3]
+
+            areas[quad]=tri_area(x1,y1)+tri_area(x2,y2)
         
-        x=self.x
-        y=self.y
-        ref=np.zeros((len(x),1))
-        nodes_coor = np.hstack((np.vstack([x,y]).T,ref))
-
-        if ty==3:
-            tri = np.zeros((1,3,3))
-            for ivert in range(3):
-                tri[0,ivert,:]=nodes_coor[self.faces[face,ivert]] 
-            areas = cal_tri_area(tri[0,:,0:2].reshape(1,6).transpose())
-
-        elif ty==4:
-            tri1 = np.zeros((1,3,3))
-            tri2 = np.zeros((1,3,3))
-            for iv,ivert in enumerate([0,1,3]):
-                tri1[0,iv,:] = nodes_coor[self.faces[face,ivert]] 
-            for iv,ivert in enumerate([1,2,3]):
-                tri2[0,iv,:] = nodes_coor[self.faces[face,ivert]]
-
-            a1=cal_tri_area(tri1[0,:,0:2].reshape(1,6).transpose())
-            a2=cal_tri_area(tri2[0,:,0:2].reshape(1,6).transpose())
-
-            areas[face] = a1+a2
-
         return areas
+
+
+    # def _calculate_areas(self,face,ty):
+        
+    #     x=self.x
+    #     y=self.y
+    #     ref=np.zeros((len(x),1))
+    #     nodes_coor = np.hstack((np.vstack([x,y]).T,ref))
+
+    #     if ty==3:
+    #         tri = np.zeros((1,3,3))
+    #         for ivert in range(3):
+    #             tri[0,ivert,:]=nodes_coor[self.faces[face,ivert]] 
+    #         areas = cal_tri_area(tri[0,:,0:2].reshape(1,6).transpose())
+
+    #     elif ty==4:
+    #         tri1 = np.zeros((1,3,3))
+    #         tri2 = np.zeros((1,3,3))
+    #         for iv,ivert in enumerate([0,1,3]):
+    #             tri1[0,iv,:] = nodes_coor[self.faces[face,ivert]] 
+    #         for iv,ivert in enumerate([1,2,3]):
+    #             tri2[0,iv,:] = nodes_coor[self.faces[face,ivert]]
+
+    #         a1=cal_tri_area(tri1[0,:,0:2].reshape(1,6).transpose())
+    #         a2=cal_tri_area(tri2[0,:,0:2].reshape(1,6).transpose())
+
+    #         areas[face] = a1+a2
+
+    #     return areas
 
 
     def _calculate_face_nodes(self):
