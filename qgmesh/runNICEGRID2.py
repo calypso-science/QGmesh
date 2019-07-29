@@ -4,7 +4,7 @@ from PyQt5 import QtWidgets
 from qgis.core import QgsProject
 import shlex
 import os,sys
-import tools
+from .tools import *
 
 
 class EmittingStream(QObject):
@@ -21,22 +21,17 @@ class EmittingStream(QObject):
 
 class RunSCHISMDialog(QtWidgets.QDialog) :
 
-    def __init__(self,meshfiles=None,shapefiles=None, parent=None) :
+    def __init__(self,mesh,shapefiles=None, parent=None) :
 
         super(RunSCHISMDialog, self).__init__(parent)
         self.setWindowTitle("Cleaning trimesh grid")
-       
+        self.mesh=mesh
         layout = QtWidgets.QVBoxLayout()
 
-        self.MeshSelector = QtWidgets.QListWidget()
-        self.MeshSelector.addItems(meshfiles)
-        tools.TitleLayout("Select Mesh to edit", self.MeshSelector, layout)
-        layout.addWidget(self.MeshSelector)
-        
-
+      
         self.ShapefileSelector = QtWidgets.QListWidget()
         self.ShapefileSelector.addItems(shapefiles)
-        tools.TitleLayout("Select node shapefile to edit", self.ShapefileSelector, layout)
+        TitleLayout("Select node shapefile to edit", self.ShapefileSelector, layout)
         layout.addWidget(self.ShapefileSelector)
         
 
@@ -44,7 +39,7 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
         self.algoSelector.addItem("do not change boundary", "0")
         self.algoSelector.addItem("correct boundary as well", "1")
         self.algoSelector.addItem("correct and adjust boundary", "2")
-        tools.TitleLayout("Boundary options", self.algoSelector, layout)
+        TitleLayout("Boundary options", self.algoSelector, layout)
 
         
         self.textWidget = QtWidgets.QPlainTextEdit()
@@ -103,12 +98,8 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
         if not self.killed :
             if state != 0 :
                 self.log("The grid has problem.", "red")
-                f = open(os.path.join(self.root,'fort.11'), "r")
-                for xx in f:
-                    self.log(xx, "red")
-                f.close()
             else :
-                self.log("The grid is good.", "green")
+                self.log("The grid is clean.", "green")
         self.closeBtn.show()
         self.closeBtn.setFocus()
         self.killBtn.hide()
@@ -117,7 +108,7 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
         if self.killed :
             return
         if state == QProcess.FailedToStart :
-            self.log("Cannot start nicegrid2: " + self.args[0], "red")
+            self.log("Cannot start nicegrid2: ", "red")
         elif state == QProcess.Crashed :
             self.log("nicegrid2 crashed.", "red")
         else :
@@ -125,8 +116,13 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
 
     def clean(self):
         nicegrid2=os.path.join(os.path.dirname(__file__),'nicegrid2')
+        fname='/tmp/gridin.gr3'
+        fout='/tmp/gridout.gr3'
+        algo=self.algoSelector.currentIndex()
+        export_function=load_IO()
+        export_function['schismIO']['export'](self.mesh,fname)
 
-        self.p.start(args[0], args[1:])
+        self.p.start(nicegrid2,[fname,fout,str(algo)])
 
     def load_file(self):
         qfd = QFileDialog()
@@ -147,15 +143,13 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
         if file_extension=='':
             return
 
-    def exec_(self, args) :
-        print(args)
+    def exec_(self) :
         self.p = QProcess()
         self.p.setProcessChannelMode(QProcess.MergedChannels)
         self.p.readyReadStandardOutput.connect(self.onStdOut)
         self.p.error.connect(self.onError)
         self.p.finished.connect(self.onFinished)
         self.textWidget.clear()
-        self.args = args
         self.closeBtn.hide()
         self.killed = False
         self.killBtn.show()

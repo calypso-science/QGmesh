@@ -1,7 +1,7 @@
 # author  : Jonathan Lambrechts jonathan.lambrechts@uclouvain.be
 # licence : GPLv2 (see LICENSE.md)
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt,QThread
 from PyQt5.QtWidgets import QApplication,QVBoxLayout,QHBoxLayout,QPushButton,QDialog,QLabel,QLineEdit,QFileDialog,QProgressDialog,QInputDialog,QWidget
 from PyQt5.QtGui import QIcon,QColor
 from qgis.gui import QgsProjectionSelectionTreeWidget
@@ -17,6 +17,38 @@ from collections import OrderedDict
 plugin_folder=os.path.join(os.path.dirname(__file__),'IO')
 sys.path.append(plugin_folder)
 
+
+def Mesh2Shapefile(mesh):
+    proj = QgsProject.instance()
+    path_absolute = QgsProject.instance().readPath('./')
+    value=0
+    for child in proj.layerTreeRoot().children():
+        if isinstance(child, QgsLayerTreeGroup) and child.name()[:4]=='Mesh':
+            value+=1
+
+    G=proj.layerTreeRoot().addGroup('Mesh_%i' % value)
+    G.setCustomProperty('name',value)
+
+    mesh.writeShapefile(os.path.join(path_absolute,'grid%i_point'%value),'points')
+    mesh.writeShapefile(os.path.join(path_absolute,'grid%i_faces'%value),'faces')
+    mesh.writeShapefile(os.path.join(path_absolute,'grid%i_edges'%value),'edges')
+
+    QThread.sleep(1)
+    vlayer = QgsVectorLayer(os.path.join(path_absolute,'grid%i_point.shp'%value), "Nodes", "ogr")
+    assign_bathy(vlayer)
+    QgsProject.instance().addMapLayer(vlayer,False)
+    G.addLayer(vlayer)
+
+    QThread.sleep(1)
+    vlayer = QgsVectorLayer(os.path.join(path_absolute,'grid%i_faces.shp'%value), "Faces", "ogr")
+    QgsProject.instance().addMapLayer(vlayer,False)
+    G.addLayer(vlayer)
+
+    QThread.sleep(1)
+    vlayer = QgsVectorLayer(os.path.join(path_absolute,'grid%i_edges.shp'%value), "Edges", "ogr")
+    assign_bnd(vlayer,mesh.physical)
+    QgsProject.instance().addMapLayer(vlayer,False)
+    G.addLayer(vlayer)
 
 def load_IO():
 

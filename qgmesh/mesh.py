@@ -145,7 +145,9 @@ class Mesh(object) :
         f0=np.unique(self.faces[:,0],return_counts=True)
         conn1[f0[0]]=f0[1]
         f1=np.unique(self.faces[:,1],return_counts=True)
-        conn1[f1[0]]=f1[1]
+        conn2[f1[0]]=f1[1]
+        f2=np.unique(self.faces[:,2],return_counts=True)
+        conn3[f2[0]]=f2[1]
         f3=np.unique(self.faces[:,3],return_counts=True)
         gd=f3[0]>=0
         if np.any(gd):
@@ -346,7 +348,6 @@ class Mesh(object) :
         
         return areas
 
-
     # def _calculate_areas(self,face,ty):
         
     #     x=self.x
@@ -450,35 +451,7 @@ class Mesh(object) :
             self.z=np.asarray([x for x in Z if str(x) != 'nan'])
 
 
-    def to_Gridshapefile(self,shape_name):
 
-
-        group='Mesh'
-        proj = QgsProject.instance()
-
-        childs=[]
-        for child in proj.layerTreeRoot().children():
-            if isinstance(child, QgsLayerTreeGroup):
-                childs.append(child.name())
-
-
-        if group not in childs:
-            G=proj.layerTreeRoot().addGroup(group)
-        else:
-            G=proj.layerTreeRoot().findGroup(group)
-
-
-        QThread.sleep(1)
-
-
-        # self._build_string()
-        # outLayer = QgsMeshLayer( self.stri, \
-        #     shape_name, \
-        #     "mesh_memory")
-
-        # QgsProject.instance().addMapLayer(outLayer,False)
-        # G.addLayer(outLayer)
-        return G
 
 
     def writeShapefile(self, filename,shape_type):
