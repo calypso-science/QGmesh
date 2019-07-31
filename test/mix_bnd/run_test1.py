@@ -18,12 +18,13 @@ import pygmsh
 from netCDF4 import Dataset
 import numpy as np
 from collections import OrderedDict
-from tools import get_format_from_gmsh
-from IO.schismIO import import_file
+from tools import get_format_from_gmsh,Mesh2Shapefile
+from IO.schismIO import import_file,export_file
 
 me=Mesh([],[],[],[])
-me=import_file(me,'/home/remy/oldhome/Buisness/0236_refining/3D/hgrid.gr3')
+me=import_file(me,'/home/remy/qwerew.gr3')
 me.calc_parameters()
+export_file(me,'hgrid.gr3')
 # Mesh.to_Gridshapefile('new_grid')
 #msh=meshio.read('/home/remy/Software/QGmesh/test/mix_bnd/new_grid.msh')
 

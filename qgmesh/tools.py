@@ -41,6 +41,7 @@ def Mesh2Shapefile(mesh):
 
     QThread.sleep(1)
     vlayer = QgsVectorLayer(os.path.join(path_absolute,'grid%i_faces.shp'%value), "Faces", "ogr")
+    assign_quality(vlayer,'ETA')
     QgsProject.instance().addMapLayer(vlayer,False)
     G.addLayer(vlayer)
 
@@ -148,6 +149,21 @@ def assign_bnd(layer,physical):
 
     renderer = QgsCategorizedSymbolRenderer('Flag', ranges)
     layer.setRenderer( renderer )
+
+    layer.triggerRepaint()
+
+    return layer
+def assign_quality(layer,mode):
+    classes=10
+
+    idx = layer.fields().indexFromName(mode)
+    symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+
+    colorRamp = QgsGradientColorRamp.create({'color1':'#ff0000', 'color2':'#40ff00'})
+    renderer = QgsGraduatedSymbolRenderer.createRenderer( layer, mode, classes, QgsGraduatedSymbolRenderer.Pretty, symbol, colorRamp )
+
+    layer.setRenderer( renderer )
+
 
     layer.triggerRepaint()
 

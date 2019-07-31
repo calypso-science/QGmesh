@@ -7,6 +7,7 @@ import os,sys
 from .tools import *
 
 
+
 class EmittingStream(QObject):
 
     textWritten = pyqtSignal(str)
@@ -103,6 +104,8 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
         self.closeBtn.show()
         self.closeBtn.setFocus()
         self.killBtn.hide()
+        if os.path.isfile(os.path.join(os.path.dirname(__file__),'nicegrid.flag')):
+            os.system('rm %s' % os.path.join(os.path.dirname(__file__),'nicegrid.flag'))
 
     def onError(self, state):
         if self.killed :
@@ -119,6 +122,27 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
         fname='/tmp/gridin.gr3'
         fout='/tmp/gridout.gr3'
         algo=self.algoSelector.currentIndex()
+        file3=self.ShapefileSelector.currentItem().text()
+        if file3 !="None":
+            X=self.mesh.x
+            Y=self.mesh.y
+            Z=self.mesh.x*0
+            proj = QgsProject.instance()
+            for child in proj.layerTreeRoot().findLayers():
+                if child.name()==file3:
+                    layer = proj.mapLayer(child.layerId())
+                    for node in layer.getFeatures():
+                        nodeID = node.attribute(0)-1
+                        Z[nodeID]=1
+
+            fileWrite = open(os.path.join(os.path.dirname(__file__),'nicegrid.flag'), 'w')
+            # Add a header
+            fileWrite.write('nicegrid.flag create with QGmesh\n')
+            fileWrite.write('%i\n' % (len(X)))
+            for node in range(0,len(X)):
+                fileWrite.write('%i\t%f\t%f\t%f\t\n'% (node+1,X[node],Y[node],Z[node]))
+            fileWrite.close()
+
         export_function=load_IO()
         export_function['schismIO']['export'](self.mesh,fname)
 

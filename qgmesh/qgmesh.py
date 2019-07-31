@@ -586,8 +586,8 @@ class qgmesh:
         vlayer = QgsVectorLayer(filename, "CFL", "ogr")
         vlayer=assign_values(vlayer,min_CFL,warn_CFL)
         QgsProject.instance().addMapLayer(vlayer,False)
-        G=proj.layerTreeRoot().findGroup('Mesh')
-        G.addLayer(vlayer)
+        proj.layerTreeRoot().addLayer(vlayer)
+
 
 
 
@@ -763,17 +763,20 @@ class qgmesh:
                         flag = layer.fields().indexFromName('Flag')
                         name = layer.fields().indexFromName('Name')
 
-                        for ie,node in enumerate(layer.getFeatures()):
-                            if node.attribute(name) not in self.mesh.physical.keys():
-                                self.mesh.physical[node.attribute(name)]=np.array([node.attribute(flag),1])
+                        for ie,bnd in enumerate(layer.getFeatures()):
+                            if bnd.attribute(name) not in self.mesh.physical.keys():
+                                self.mesh.physical[bnd.attribute(name)]=np.array([bnd.attribute(flag),1])                              
 
-                            if ie>0 and node.attribute(flag)!=self.mesh.physicalID[-1]:
-                                self.mesh.edges.append(-1)
-                                self.mesh.physicalID.append(-1)                                
+                            nodes = bnd.geometry().asMultiPolyline()[0]
+                            for node in nodes:
+                                ids=np.where(((self.mesh.x==node[0]) & (self.mesh.y==node[1])))[0]
+                                if len(ids)>0:
+                                    self.mesh.edges.append(ids[0])
+                                    self.mesh.physicalID.append(bnd.attribute(flag))
 
-                            self.mesh.edges.append(int(node.attribute(idx0)-1))
-                            self.mesh.physicalID.append(node.attribute(flag))
 
+                            self.mesh.edges.append(-1)
+                            self.mesh.physicalID.append(-1) 
 
         self.mesh.edges=np.array(self.mesh.edges).astype('int32')
         self.mesh.physicalID=np.array(self.mesh.physicalID).astype('int32')

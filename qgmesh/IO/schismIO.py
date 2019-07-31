@@ -33,54 +33,60 @@ def import_file(mesh, fname):
             mesh.faces[i,0:int(ty)]=[float(x) for x in tmp]
 
 
-
-        n_open_boundaries = int(f.readline().strip().split(None,1)[0])
         mesh.edges=[]
         mesh.physicalID=[]
         mesh.physical={}
-        mesh.physical['ocean']=np.array([1,1])
-        mesh.physical['coast']=np.array([2,1])
-        mesh.physical['island']=np.array([3,1])
-        mesh.physical['river']=np.array([4,1])
 
-        for n_open in range(n_open_boundaries):
-            if n_open==0:
-                f.readline()
+        try:
+            n_open_boundaries = int(f.readline().strip().split(None,1)[0])
+        except:
+            n_open_boundaries=0
 
-            nodes=int(f.readline().strip().split(None,1)[0])          
-            for node in range(0,nodes):
-                mesh.edges.append(int(f.readline().strip().split(None,1)[0]))
-                mesh.physicalID.append(1)
-            
-            mesh.edges.append(0)
-            mesh.physicalID.append(0)
+        if n_open_boundaries>0:
+
+            mesh.physical['ocean']=np.array([1,1])
+            mesh.physical['coast']=np.array([2,1])
+            mesh.physical['island']=np.array([3,1])
+            #mesh.physical['river']=np.array([1,1])
+
+            for n_open in range(n_open_boundaries):
+                if n_open==0:
+                    f.readline()
+
+                nodes=int(f.readline().strip().split(None,1)[0])          
+                for node in range(0,nodes):
+                    mesh.edges.append(int(f.readline().strip().split(None,1)[0]))
+                    mesh.physicalID.append(1)
+                
+                mesh.edges.append(0)
+                mesh.physicalID.append(0)
 
 
-        n_land_boundaries = int(f.readline().strip().split(None,1)[0])
-        for n_land in range(n_land_boundaries):
-            if n_land==0:
-                f.readline()
+            n_land_boundaries = int(f.readline().strip().split(None,1)[0])
+            for n_land in range(n_land_boundaries):
+                if n_land==0:
+                    f.readline()
 
 
-            tmp=f.readline().strip().split(None,2)
-            nodes=tmp[0]
-            ty=tmp[1]
+                tmp=f.readline().strip().split(None,2)
+                nodes=tmp[0]
+                ty=tmp[1]
 
-            if ty.endswith('='):
-                ty=ty.replace('=','')
-            nodes=int(nodes)  
-       
-            for node in range(0,nodes):
-                mesh.edges.append(int(f.readline().strip().split(None,1)[0]))
-                mesh.physicalID.append(2+int(ty))
+                if ty.endswith('='):
+                    ty=ty.replace('=','')
+                nodes=int(nodes)  
+           
+                for node in range(0,nodes):
+                    mesh.edges.append(int(f.readline().strip().split(None,1)[0]))
+                    mesh.physicalID.append(2+int(ty))
 
-            mesh.edges.append(0)
-            mesh.physicalID.append(0)
+                mesh.edges.append(0)
+                mesh.physicalID.append(0)
+            mesh.edges=np.array(mesh.edges).astype('int32')-1
             
         f.close()   
 
         mesh.nodes=np.arange(1,len(mesh.x)+1)
-        mesh.edges=np.array(mesh.edges).astype('int32')-1
         mesh.faces=np.array(mesh.faces).astype('int32')-1
 
         return mesh
@@ -123,22 +129,19 @@ def export_file(mesh,fname):
     # number of open boundary
     Bnd={}
     for n in range(0,len(mesh.physicalID)):
-        if not mesh.physicalID[n] in Bnd.keys():
+        if not mesh.physicalID[n] in Bnd.keys() and mesh.physicalID[n]>0:
             Bnd[mesh.physicalID[n]]=[]
 
         if n==0:
             bnd=[]
-        elif mesh.physicalID[n]!=mesh.physicalID[n-1]:
-
+        elif mesh.physicalID[n]<=0:
             Bnd[mesh.physicalID[n-1]].append(bnd)
             bnd=[]
+        else:
+            bnd.append(mesh.edges[n])
 
-
-        bnd.append(mesh.edges[n])
-
-
-        if n==len(mesh.physicalID)-1:
-            Bnd[mesh.physicalID[n-1]].append(bnd)
+#        if n==len(mesh.physicalID)-1:
+#            Bnd[mesh.physicalID[n-1]].append(bnd)
 
     
     for key in Bnd:
@@ -156,14 +159,14 @@ def export_file(mesh,fname):
 
 
     bnd=0
-    for name in ['ocean','river']:
+    for name in ['ocean']:#,'river']:
         if name in mesh.physical:
             bnd+=len(Bnd[mesh.physical[name][0]])
 
     fileWrite.write('%i = Number of open boundaries\n' % bnd)
     # numbr of boundary node
     nope=0
-    for name in ['ocean','river']:
+    for name in ['ocean']:#,'river']:
         if name in mesh.physical:
             for n in range(0,len(Bnd[mesh.physical[name][0]])):
                 nope+=len(Bnd[mesh.physical[name][0]][n])
@@ -171,7 +174,7 @@ def export_file(mesh,fname):
     fileWrite.write('%i = Total number of open boundary nodes\n' % nope)
 
     nope=1
-    for name in ['ocean','river']:
+    for name in ['ocean']:#,'river']:
         if name in mesh.physical:
             
             for n in range(0,len(Bnd[mesh.physical[name][0]])):
