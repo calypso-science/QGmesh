@@ -15,7 +15,7 @@ import runGmsh
 from mesh import Mesh
 import meshio
 import pygmsh
-from netCDF4 import Dataset
+#from netCDF4 import Dataset
 import numpy as np
 from collections import OrderedDict
 from tools import get_format_from_gmsh,Mesh2Shapefile

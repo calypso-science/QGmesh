@@ -437,18 +437,19 @@ class Mesh(object) :
                 fileWriter.addFeature(newFeature)
 
         if shape_type=='edges':
-#            import pdb;pdb.set_trace()
+            #import pdb;pdb.set_trace()
             inv_map = {v[0]: k for k, v in self.physical.items()}
             points=[]
             edgeN=0
             for ie,edge in enumerate(self.edges):
-                if edge>0:
+                if edge>=0:
                     points.append(QgsPointXY(self.x[edge],self.y[edge]))
                 else:
                     newFeature = QgsFeature()
                     newFeature.setGeometry(QgsGeometry.fromPolylineXY(points))
                     newFeature.setFields(fields)
-                    newFeature.setAttributes([int(edgeN+1),int(self.physicalID[ie-1]),inv_map[self.physicalID[ie-1]]])
+                    idx=np.max([ie-1,0])
+                    newFeature.setAttributes([int(edgeN+1),int(self.physicalID[idx]),inv_map[self.physicalID[idx]]])
                     points=[]
                     fileWriter.addFeature(newFeature)
                     edgeN+=1

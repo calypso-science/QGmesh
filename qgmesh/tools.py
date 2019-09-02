@@ -88,9 +88,13 @@ def get_format_from_gmsh(mesh):
     for ie,edge in enumerate(mesh.cells['line']):
         if ie>0:
             if (mesh.cell_data['line']['gmsh:physical'][ie]!=mesh.cell_data['line']['gmsh:physical'][ie-1]) or (ie==len(mesh.cells['line'])-1):
+                if (ie==len(mesh.cells['line'])-1):
+                    edges.append(edge[0])
+                    tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
+
                 unique_edges=np.array(list(OrderedDict.fromkeys(edges)),'int64')
                 Edges=np.concatenate((Edges,unique_edges))
-                Edges=np.concatenate((Edges,np.array([0])))
+                Edges=np.concatenate((Edges,np.array([-1])))
                 for x in unique_edges:
                     physicalID.append(tmp[edges.index(x)])
                 physicalID.append(0)
@@ -98,13 +102,12 @@ def get_format_from_gmsh(mesh):
                 tmp=[]
 
         edges.append(edge[0])
-        edges.append(edge[1])
-        tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
+        #tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
         tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
 
     
-    Edges=np.array(Edges).astype('int32')-1
-    import pdb;pdb.set_trace()
+    Edges=np.array(Edges).astype('int32')
+    
     triangles=np.ones((tot,4))*-1.
     if 'triangle' in mesh.cells:
         triangles[0:tri_len,0:3]=mesh.cells['triangle']
