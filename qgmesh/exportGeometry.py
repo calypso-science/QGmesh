@@ -4,7 +4,7 @@ from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt,pyqtRemoveInputHook,QFileInfo
 import pygmsh
 import os
-from .tools import writeRasterLayer
+from tools import writeRasterLayer
 
 
 

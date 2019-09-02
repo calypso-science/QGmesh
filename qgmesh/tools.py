@@ -87,13 +87,13 @@ def get_format_from_gmsh(mesh):
     physicalID=[]
     for ie,edge in enumerate(mesh.cells['line']):
         if ie>0:
-            if mesh.cell_data['line']['gmsh:physical'][ie]!=mesh.cell_data['line']['gmsh:physical'][ie-1]:
+            if (mesh.cell_data['line']['gmsh:physical'][ie]!=mesh.cell_data['line']['gmsh:physical'][ie-1]) or (ie==len(mesh.cells['line'])-1):
                 unique_edges=np.array(list(OrderedDict.fromkeys(edges)),'int64')
                 Edges=np.concatenate((Edges,unique_edges))
-                Edges=np.concatenate((Edges,np.array([-1])))
+                Edges=np.concatenate((Edges,np.array([0])))
                 for x in unique_edges:
                     physicalID.append(tmp[edges.index(x)])
-                physicalID.append(-1)
+                physicalID.append(0)
                 edges=[]
                 tmp=[]
 
@@ -102,8 +102,9 @@ def get_format_from_gmsh(mesh):
         tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
         tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
 
-
-
+    
+    Edges=np.array(Edges).astype('int32')-1
+    import pdb;pdb.set_trace()
     triangles=np.ones((tot,4))*-1.
     if 'triangle' in mesh.cells:
         triangles[0:tri_len,0:3]=mesh.cells['triangle']
@@ -112,7 +113,7 @@ def get_format_from_gmsh(mesh):
         triangles[tri_len:tot,:]=mesh.cells['quad']
 
 
-    return triangles,Edges.astype('int'),physicalID
+    return triangles,Edges,physicalID
 
 def get_layer(layer_name):
     proj = QgsProject.instance()
