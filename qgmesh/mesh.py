@@ -8,6 +8,7 @@ import numpy as np
 
 
 def bilinear(px, py,gt,band_array, no_data=np.nan):
+
     '''Bilinear interpolated point at (px, py) on band_array
     example: bilinear(2790501.920, 6338905.159)'''
     ny, nx = band_array.shape
@@ -485,6 +486,7 @@ class Mesh(object) :
         raster=gdal.Open(raster)
         bathy=raster.GetRasterBand(1).ReadAsArray()
         gt = raster.GetGeoTransform()
+
         for pt in range(0,len(self.x)):
             self.z[pt]=bilinear(self.x[pt],self.y[pt],gt,bathy, no_data=np.nan)
 

@@ -816,11 +816,25 @@ class qgmesh:
 
     def add_bathy(self):
         proj = QgsProject.instance()
+        
+        Mesh=[]
+        for child in proj.layerTreeRoot().children():
+            if isinstance(child, QgsLayerTreeGroup) and child.name()[:4]=='Mesh':
+                Mesh.append(child.name())
+
+        msh=mesh_selector(Mesh)
+        msh_name=msh.exec_()
+        value=int(msh_name.replace('Mesh_',''))
+        self.mesh=self.rebuild_mesh(value=value)
+
         raster=[]
         for child in proj.layerTreeRoot().findLayers():   
             layer = proj.mapLayer(child.layerId())     
             if layer.type()==QgsMapLayer.RasterLayer:
                 raster.append(layer.name())
+
+        if len(raster)==0:
+            self.iface.messageBar().pushMessage("Error", "You need at Raster to add bathy", level=Qgis.Warning)
 
         ex = raster_calculator(raster,'choose')
         ex.show()
@@ -828,11 +842,13 @@ class qgmesh:
         
         self.mesh.AddBathy(layer)
 
-        for child in proj.layerTreeRoot().findLayers():   
-            layer = proj.mapLayer(child.layerId())     
-            if layer.name()=='Nodes':
-                update_field(layer,'Depth',self.mesh.z)
-                assign_bathy(layer)
+        for child in proj.layerTreeRoot().findGroups():      
+            if child.name() in ['Mesh_'+str(value)]:
+                for sub_subChild in child.children():
+                    if sub_subChild.name()=='Nodes':
+                        layer = proj.mapLayer(sub_subChild.layerId())     
+                        update_field(layer,'Depth',self.mesh.z)
+                        assign_bathy(layer)
 
 
 

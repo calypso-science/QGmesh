@@ -22,16 +22,42 @@ from tools import get_format_from_gmsh,Mesh2Shapefile
 from IO.schismIO import import_file,export_file
 
 me=Mesh([],[],[],[])
-me=import_file(me,'/home/remy/qwerew.gr3')
+me=import_file(me,'/home/remy/Documents/test/bon.gr3')
 me.calc_parameters()
-export_file(me,'hgrid.gr3')
+
+
+filename=os.path.join('/home/remy/Documents/test/','welligthon.qgz')
+print(filename)
+proj = QgsProject.instance()
+proj.read(filename)
+
+for child in proj.layerTreeRoot().findLayers(): 
+    print(child.name())     
+
+    if child.name() in ['bathy']:
+            layer = proj.mapLayer(child.layerId())
+
+print(np.min(me.x))
+me.AddBathy('/home/remy/Documents/test/bathy.tif')
+for child in proj.layerTreeRoot().findGroups():  
+    import pdb;pdb.set_trace()    
+    if child.name() in ['Mesh_'+str(4)]:
+        for sub_subChild in child.children():
+            import pdb;pdb.set_trace()
+            if sub_subChild.name()=='Nodes':
+                layer = proj.mapLayer(sub_subChild.layerId())     
+                update_field(layer,'Depth',self.mesh.z)
+                assign_bathy(layer)
+
+
+
 # Mesh.to_Gridshapefile('new_grid')
 #msh=meshio.read('/home/remy/Software/QGmesh/test/mix_bnd/new_grid.msh')
 
 #triangles,edges,physicalID=get_format_from_gmsh(msh)
 
 # mesh=Mesh(msh.points[:,0],msh.points[:,1],msh.points[:,2],triangles,edges=edges,physical=msh.field_data,physicalID=physicalID)
-import pdb;pdb.set_trace()
+
 
 
 root_grp = Dataset('cfl.nc', 'w', format='NETCDF4',clobber=True)
