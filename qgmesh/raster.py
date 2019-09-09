@@ -13,13 +13,14 @@ from .tools import *
 
 class raster_calculator(QtWidgets.QDialog):
 
-    def __init__(self,rasters,funct_name):
+    def __init__(self,rasters,funct_name,tmp='/tmp'):
         super(raster_calculator,self).__init__()
 
 
         layout = QtWidgets.QVBoxLayout()
         self.rasterSelector = QtWidgets.QListWidget()
         self.rasterSelector.addItems(rasters)
+        self.tempdir=tmp
         if funct_name=='distance':
             TitleLayout("Shapes", self.rasterSelector, layout)
         else:
@@ -141,8 +142,8 @@ class raster_calculator(QtWidgets.QDialog):
         time = datetime.now()
 
 
-        rasterisedShapesFilename='/tmp/raster_dist.nc'
-        outputRasterFilename='/tmp/distance.tif'
+        rasterisedShapesFilename=os.path.join( self.tempdir,'raster_dist.nc')
+        outputRasterFilename=os.path.join( self.tempdir,'distance.tif')
 
         if os.path.isfile(rasterisedShapesFilename):
             os.system('rm -f %s' % rasterisedShapesFilename)

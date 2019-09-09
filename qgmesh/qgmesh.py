@@ -49,6 +49,8 @@ import uuid
 from .runNICEGRID2 import *
 from .meshselector import *
 
+import platform
+
 class qgmesh:
     """QGIS Plugin Implementation."""
 
@@ -196,17 +198,8 @@ class qgmesh:
         self.menu_init.setObjectName("Initializing")
         self.menu_init.setTitle("Initializing")
 
-        reload_data=self.add_action(
-            icon_path,
-            text=self.tr(u'Reload saved data'),
-            callback=self.reload_data,
-            parent=self.iface.mainWindow(),
-            add_to_toolbar=False,
-            add_to_menu=False,
-            status_tip="Reload all saved data.",
-            whats_this="Reload all saved data.")
 
-        self.menu_init.addAction(reload_data)
+     
 
 
         init_fold_tetra=self.add_action(
@@ -456,6 +449,14 @@ class qgmesh:
         self.first_start = True
 
 
+        plat=platform.system()
+        if plat in 'Linux':
+            self.tempdir = "/tmp"
+        elif plat in 'Windows':
+            self.tempdir ="C:\TEMP"
+        elif plat in 'Darwin':
+            self.tempdir='/tmp'
+
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
@@ -511,7 +512,7 @@ class qgmesh:
             if layer.type()==QgsMapLayer.RasterLayer:
                 raster.append(layer.name())
 
-        ex = raster_calculator(raster,'wavelength')
+        ex = raster_calculator(raster,'wavelength',tmp= self.tempdir)
         ex.show()
         ex.exec_()
 
@@ -523,7 +524,7 @@ class qgmesh:
             if layer.type()==QgsMapLayer.RasterLayer:
                 raster.append(layer.name())
 
-        ex = raster_calculator(raster,'scale')
+        ex = raster_calculator(raster,'scale',tmp= self.tempdir)
         ex.show()
         ex.exec_()
 
@@ -535,7 +536,7 @@ class qgmesh:
             if layer.type()!=QgsMapLayer.RasterLayer:
                 raster.append(layer.name())
 
-        ex = raster_calculator(raster,'distance')
+        ex = raster_calculator(raster,'distance',tmp= self.tempdir)
         ex.show()
         ex.exec_() 
 
@@ -685,7 +686,7 @@ class qgmesh:
                 shapefile.append(layer.name())
 
 
-        run_cleaner = RunSCHISMDialog(self.mesh,shapefile)
+        run_cleaner = RunSCHISMDialog(self.mesh,shapefile,tmp= self.tempdir)
         root=os.path.dirname(__file__)
         nicegrid=os.path.join(root,'nicegrid2')
         if not os.path.isfile(nicegrid):
@@ -696,7 +697,7 @@ class qgmesh:
         run_cleaner.exec_()
 
         import_function=load_IO()
-        self.mesh=import_function['schismIO']['import'](self.mesh,'/tmp/gridout.gr3')   
+        self.mesh=import_function['schismIO']['import'](self.mesh,os.path.join( self.tempdir,'gridout.gr3'))   
         self.mesh._calculate_face_nodes()
 #                self.mesh._remove_hanging_nodes()
         self.mesh.calc_parameters()
@@ -837,7 +838,7 @@ class qgmesh:
             self.iface.messageBar().pushMessage("Error", "You need at Raster to add bathy", level=Qgis.Warning)
             return
 
-        ex = raster_calculator(raster,'choose')
+        ex = raster_calculator(raster,'choose',tmp= self.tempdir)
         ex.show()
         layer=ex.exec_()
         
@@ -944,15 +945,7 @@ class qgmesh:
         f.close()
         self.iface.messageBar().pushMessage("Info", "%s exported " % fname, level=Qgis.Info)
 
-    def reload_data(self):
-        proj = QgsProject.instance()
-        mesh_out=proj.readEntry("QGmsh", "mesh_file", "")[0]
-        if len(mesh_out)>0:
-            msh=meshio.read(mesh_out)
-            self.mesh=Mesh(msh)
-            Mesh2Shapefile(self.mesh)
-
-        
+       
 
 
     def initialize_folders_tetra(self):
