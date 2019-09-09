@@ -55,7 +55,8 @@ class raster_calculator(QtWidgets.QDialog):
     def initDist(self,layout):
        
         layer = iface.activeLayer() # load the layer as you want
-        ext = layer.extent()
+        ext=iface.mapCanvas().extent()
+        #ext = layer.extent()
         xmin = ext.xMinimum()
         xmax = ext.xMaximum()
         ymin = ext.yMinimum()

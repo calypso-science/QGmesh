@@ -835,6 +835,7 @@ class qgmesh:
 
         if len(raster)==0:
             self.iface.messageBar().pushMessage("Error", "You need at Raster to add bathy", level=Qgis.Warning)
+            return
 
         ex = raster_calculator(raster,'choose')
         ex.show()
