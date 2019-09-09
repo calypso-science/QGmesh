@@ -186,7 +186,11 @@ class qgmesh:
         return action
 
     def initGui(self):
-        icon_path = ':/plugins/qgmesh/icon.png'
+        root=os.path.dirname(__file__)
+        meshit_icon=os.path.join(root,'icons','MeshIt.ico')
+        refresh_icon=os.path.join(root,'icons','refresh.png')
+        wavelength_icon=os.path.join(root,'icons','wavelength.png')
+        icon_path = ''
 
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
         self.menu = QMenu(self.iface.mainWindow())
@@ -251,7 +255,7 @@ class qgmesh:
             text=self.tr(u'Update geometry'),
             callback=self.update_geofile,
             parent=self.iface.mainWindow(),
-            add_to_toolbar=True,
+            add_to_toolbar=False,
             add_to_menu=False,
             status_tip="Update the Geometry",
             whats_this="This will update th geometry needed by GMSH.")
@@ -280,7 +284,7 @@ class qgmesh:
         self.menu_mesh.setTitle("Meshing")
 
         mesh_it=self.add_action(
-            icon_path,
+            meshit_icon,
             text=self.tr(u'Mesh it'),
             callback=self.mesh_geofile,
             parent=self.iface.mainWindow(),
@@ -328,7 +332,7 @@ class qgmesh:
         self.menu_mesh.addAction(import_msh)
 
         refresh_msh=self.add_action(
-            icon_path,
+            refresh_icon,
             text=self.tr(u'Refresh Mesh'),
             callback=self.refresh_mesh,
             parent=self.iface.mainWindow(),
@@ -402,11 +406,11 @@ class qgmesh:
         self.raster_calc.setTitle("Raster calculator")
 
         to_wavelength=self.add_action(
-            icon_path,
+            wavelength_icon,
             text=self.tr(u'convert to wavelength'),
             callback=self.to_wavelength,
             parent=self.menu_size,
-            add_to_toolbar=False,
+            add_to_toolbar=True,
             add_to_menu=False,
             status_tip=".",
             whats_this=".")
