@@ -190,6 +190,9 @@ class qgmesh:
         meshit_icon=os.path.join(root,'icons','MeshIt.ico')
         refresh_icon=os.path.join(root,'icons','refresh.png')
         wavelength_icon=os.path.join(root,'icons','wavelength.png')
+        scale_icon=os.path.join(root,'icons','scale.ico')
+        tape_icon=os.path.join(root,'icons','tape.png')
+
         icon_path = ''
 
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
@@ -418,11 +421,11 @@ class qgmesh:
         self.raster_calc.addAction(to_wavelength)
 
         to_scale=self.add_action(
-            icon_path,
+            scale_icon,
             text=self.tr(u'Scale value to range'),
             callback=self.to_scale,
             parent=self.menu_size,
-            add_to_toolbar=False,
+            add_to_toolbar=True,
             add_to_menu=False,
             status_tip=".",
             whats_this=".")
@@ -430,7 +433,7 @@ class qgmesh:
         self.raster_calc.addAction(to_scale)
 
         to_dist=self.add_action(
-            icon_path,
+            tape_icon,
             text=self.tr(u'Calculate distances'),
             callback=self.to_dist,
             parent=self.menu_size,
