@@ -431,14 +431,15 @@ class GeoFile():
                     xmax=float('inf')*-1
                     ymin=float('inf')
                     ymax=float('inf')*-1
-                    lines = geom.asMultiPolyline()
+                    #for loop in geom.asPolygon() :
+                    lines = geom.asPolygon()
                     for line in lines:
                         if xform :
                             line = [xform.transform(x) for x in line]
                         for pt in line:
                             xmin=min(xmin,pt[0])
                             xmax=max(xmax,pt[0])
-                            ymin=min(xmin,pt[1])
+                            ymin=min(ymin,pt[1])
                             ymax=max(ymax,pt[1])
 
                     self.Field.append(self.addBox(xmin,xmax,ymin,ymax,**options))
