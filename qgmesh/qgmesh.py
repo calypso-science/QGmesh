@@ -437,7 +437,7 @@ class qgmesh:
             text=self.tr(u'Calculate distances'),
             callback=self.to_dist,
             parent=self.menu_size,
-            add_to_toolbar=False,
+            add_to_toolbar=True,
             add_to_menu=False,
             status_tip=".",
             whats_this=".")

@@ -200,7 +200,10 @@ class GeoFile():
 
         lids = [self.writeLine(ids)] 
         if group_name == 'Channels' or grid_type=='transfinite':
-            self.geo.set_transfinite_lines([self.l[-1]], trans, progression=progression, bump=bump)
+            if trans is not None:
+                self.geo.set_transfinite_lines([self.l[-1]], trans, progression=progression, bump=bump)
+            
+
         #elif :
         #    lids = [self.writeLine((ids[i],ids[i+1])) for i in range(len(ids)-1)]
 
