@@ -72,6 +72,7 @@ class GeoFile():
         self.channel_border=[]
         self.Field=[]
         self.corners=[]
+        self.intruder=[]
 
     def get_corner(self,surface):
         Xcorners=[x[0] for x in self.corners]
@@ -138,12 +139,12 @@ class GeoFile():
         domain=[]
         channel=[]
 
-        for physical in self.physicals_ll:
 
+        for physical in self.physicals_ll:
             if physical == 'Islands' or physical == 'Channels':
                 for x in set(self.physicals_ll[physical]):
                     holes.append(self.ll[x])
-            else:
+            elif physical not in 'Inclusion':
                 domain=self.ll[self.physicals_ll[physical][0]]
 
 
@@ -158,6 +159,13 @@ class GeoFile():
 
         sf=self.geo.add_plane_surface(domain,holes=holes)
         self.geo.add_raw_code('Physical Surface("%s") = {%s};' % (sf.id,sf.id))
+
+        for physical in self.physicals_ll:
+            if physical== 'Inclusion':
+                for x in self.intruder:
+
+                    self.geo.in_surface(x,sf)          
+        
 
         if grid_type =='transfinite':
             ids=self.get_corner(sf)
@@ -202,6 +210,8 @@ class GeoFile():
         if group_name == 'Channels' or grid_type=='transfinite':
             if trans is not None:
                 self.geo.set_transfinite_lines([self.l[-1]], trans, progression=progression, bump=bump)
+        if group_name=='Inclusion':
+            self.intruder.append(self.l[-1])
             
 
         #elif :
