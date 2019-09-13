@@ -444,18 +444,34 @@ class GeoFile():
                     xmax=float('inf')*-1
                     ymin=float('inf')
                     ymax=float('inf')*-1
-                    #for loop in geom.asPolygon() :
-                    lines = geom.asPolygon()
-                    for line in lines:
-                        if xform :
-                            line = [xform.transform(x) for x in line]
-                        for pt in line:
-                            xmin=min(xmin,pt[0])
-                            xmax=max(xmax,pt[0])
-                            ymin=min(ymin,pt[1])
-                            ymax=max(ymax,pt[1])
+                    
+                    if geom.isMultipart() :
+                        polys = geom.asMultiPolygon()  
+                        # for pol in poly:
+                        # lines=pol.asPolygon()
+                        for poly in polys:
+                            for line in poly:
+                            #if xform :
+                            #    line = [xform.transform(x) for x in line]
+                                for pt in line:
+                                    xmin=min(xmin,pt[0])
+                                    xmax=max(xmax,pt[0])
+                                    ymin=min(ymin,pt[1])
+                                    ymax=max(ymax,pt[1])
 
-                    self.Field.append(self.addBox(xmin,xmax,ymin,ymax,**options))
+                            self.Field.append(self.addBox(xmin,xmax,ymin,ymax,**options))                                            
+                    else:
+                        lines = geom.asPolygon()
+                        for line in lines:
+                            if xform :
+                                line = [xform.transform(x) for x in line]
+                            for pt in line:
+                                xmin=min(xmin,pt[0])
+                                xmax=max(xmax,pt[0])
+                                ymin=min(ymin,pt[1])
+                                ymax=max(ymax,pt[1])
+
+                        self.Field.append(self.addBox(xmin,xmax,ymin,ymax,**options))
 
 
 
