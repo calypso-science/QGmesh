@@ -1,0 +1,222 @@
+<html>
+<head>
+	<title>Help page for QGmesh</title>
+</head>
+<body>
+	<p align="center"><font size="6">QGmesh User Manual</font></p>
+	<p align="left">&nbsp;</p>
+	<ol>
+	<li><b>Step1: Initializing</b>
+		<ol>
+		<li><a href="#init_finite">Finite</a></li>
+		<li><a href="#init_quad">Quad</a></li>
+		<li><a href="#init_trans">Transfinite</a></li>
+		</ol>
+	</li>
+
+	<li><b>Step2: the domain</b>
+		<ol>
+		<li><a href="#boundaries">Boundaries</a></li>
+		<li><a href="#islands">Islands</a></li>
+		<li><a href="#inclusion">Inclusion</a></li>
+		<li><a href="#channel">Channel</a></li>
+		<li><a href="#corners">Corners</a></li>
+		<li><a href="#transfinite">Transfinite</a></li>
+		<li><a href="#QuadPatch"> QuadPatch</a></li>
+		</ol>
+	</li>
+
+	<li><b>Step3: Sizing field</b>
+		<ol>
+		<li><a href="#add_ball">Ball</a></li>
+		<li><a href="#add_box">Box</a></li>
+		<li><a href="#wavelength">Wavelength</a></li>
+		<li><a href="#scaling">Scaling</a></li>
+		<li><a href="#distances">Distance</a></li>
+		</ol>
+	</li>
+	<li><b>Step4: Meshing</b>
+		<ol>
+		<li><a href="#meshit">Mesh</a></li>
+		<li><a href="#cleanit">Cleaning</a></li>
+		<li><a href="#editit">Editing</a></li>
+		</ol>
+	</li>
+		<li><b>Step5: Add Bathymetry</b>
+		<ol>
+		<li><a href="#add_bathy">Add bathy</a></li>
+		</ol>
+	</li>
+	<li><b>	Attribute</b>
+		<ol>
+		<li><a href="#eta">ETA</a></li>
+		<li><a href="#nsr">NSR</a></li>
+		<li><a href="#angle">Angle</a></li>
+		<li><a href="#typ">Type</a></li>
+		</ol>
+	</li>
+</ol><hr><ol>
+	<li><b>Step1: Initializing</b> 
+		<ol>
+		<li><a name="init_finite">Finite</a></li>
+			This will create groups that are used to create finite element mesh. Finite element mesh can be a mixed of quad and triangle
+			<br><br>
+
+		<li><a name="init_quad">Quad</a></li>
+		This will create groups that are used to create Quad only element mesh. 
+		<br><br>
+
+		<li><a name="init_trans">Transfinite</a></li>
+		This will create groups that are used to create a regular grid mesh. 
+		<br><br>
+		</ol>
+	</li>
+	<li><b>	Step2: the domain</b>
+		<ol>
+		<li><a name="boundaries">Boundaries</a></li>
+			Load or create a contour line shapefile of the coast, the ocean and any rivers.
+			<br>
+			Once done assign a physical attribute to each segment to do so:
+			go to "Open field calculator". In "output field name" put "physical", change "output field type" to 'text', and in "expression" put either 'ocean','land' or 'river.
+			<br>
+			Drag the boundaries shapefile inside the boundary group
+			<br>
+			IMPORTANT: It is important to make sure the river and coastline are connected, and make one CLOSE polygon. To ensure this eable snapping toolbox of QGIS
+			<br><br>
+		<li><a name="islands">Islands</a></li>
+			Load or create a contour polygone shapefile of the islands.
+			<br>
+			Once done assign a physical attribute to each polygon to do so:
+			go to "Open field calculator". In "output field name" put "physical", change "output field type" to 'text', and in "expression" put 'island'.
+			<br>
+			Drag the islands shapefile inside the Islands group
+			<br>
+			IMPORTANT: It is important to make sure the island make one CLOSE polygon. To ensure this eable snapping toolbox of QGIS
+			<br><br>
+		<li><a name="Inclusion">Inclusion</a></li>
+			This will force mesh to be include in this polygon.
+			Load or create a contour polygone shapefile of a polygon.
+			<br>
+			Drag the shapefile inside the Inclusion group
+			<br><br>
+		<li><a name="Channel">Channel</a></li>
+			This will create a patch of regular grid inside a finite element mesh
+			<br>
+			Create 4 a polygone with 4 lines and 4 corners.
+			<br>
+			Once done assign a physical attribute to each line with the GMSH option to do so:
+			go to "Open field calculator". In "output field name" put "physical", change "output field type" to 'text', and in "expression" put 'island'.
+			<br>
+			Drag the islands shapefile inside the Islands group
+			<br>
+			IMPORTANT: It is important to make sure the island make one CLOSE polygon. To ensure this eable snapping toolbox of QGIS
+			<br><br>
+		<li><a name="Corners">Corners</a></li>
+			Those options will change the aspect of the patch file. select manual if you do not want MDI2 to look for the best patch file.
+			<br>
+			If you select contour then it will just plot a line (quicker) instead of a patch.
+			<br><br>
+		<li><a name="transfinite">transfinite</a></li>
+			Those options will change the aspect of the patch file. select manual if you do not want MDI2 to look for the best patch file.
+			<br>
+			If you select contour then it will just plot a line (quicker) instead of a patch.
+			<br><br>
+		<li><a name="QuadPatch">QuadPatch</a></li>
+			Those options will change the aspect of the patch file. select manual if you do not want MDI2 to look for the best patch file.
+			<br>
+			If you select contour then it will just plot a line (quicker) instead of a patch.
+			<br><br>
+		</ol>
+	</li>
+
+
+	<li><b>Step3: Sizing field</b><br>
+		<br><br>
+		<ol><li><a name="add_ball">Ball</a></li>
+			You can import your data form the UDS server.
+			<br>
+			First you must setup the adress from where the UDS server is in set up > connection.
+			<br>
+			
+		<li><a name="add_box">Box</a></li>
+			You can import one or mutliple Netcdf file.
+			Once loaded, you should see all the variable that is contained in the Netcdf file in the variable liste.
+			<br>
+			The Netcdf file should follow the cf convention
+			<br><br> 
+		<li><a name="wavelength">Wavelength</a></li>
+			knjdnaskjdk
+			<br><br>
+		<li><a name="scaling">Scaling</a></li>
+			When you have loaded a Netcdf file by either imprting ot or using the UDS server, it should be kept inside a library that can be access (file > library).
+			<br>
+			This is a list of all Netcdf file that have been loaded, to plot the one you want, just click on the name.
+			<br>
+			You can delete a file from the library or get some more information by clicking on More information. This should prompt a list of information in the Matlab prompt.
+			<br>
+			You can also Merge two files together by cliking onto the Merge button (Not implemented yet).
+			<br><br>
+		<li><a name="distances">Distances</a></li>
+			knjdnaskjdk
+			<br><br>
+		</ol>
+
+	<li><b>Step4: Meshing</b><br>
+		<ol>
+		<li><a name="meshit">Mesh it</a></li>
+		To plot the data you want you need to pass it from the variable liste to the 1st layer liste. to that, selecte the variable you want to plot in the variable liste, click on the right arrow. You variable should be now in the 1st layer liste.<br>
+		If you do not want this variable anymore, just select it from the 1st layer liste and then click on the left arrow.<br>
+		If the variable you want to import is u and v. import U and V in the 1st layer list, then BECARFULL, the first varaible MUST be U and the second must be V. if not use the side butto (+) or (-) to move it upward or downward.<br>
+		Once you are happy about the variable, click the Refresh button.
+		<br><br>
+		<li><a name="cleanit">Clean it</a></li>
+		In the plot option you specify the kind of plot you want, the first layer can be a pcolor, quiver, contour or contourf. If there is mre than one variable in the 1st layer list then you must specify if you are using spd dir or u and v. otherwise you do not have to worry about it.
+		<br>
+		For the 2n layer it can only be a quiver or contour, it is possible to have only one variable in the list and plot a quiver, it will implies that the variable is direction (i.e dpm). then the spd will just be a dump value.
+		<br>
+		If you specify a contour it is good to specify the contour you want because there is no colormap so the label will be written on each contour. so better no to have to much contour;
+		<br><br>
+		<li><a name="editit">Edit it</a></li>
+		The colorbar option, you can import one or let it blank, if blank the jet colorbar will be imported.
+		You can also specify the caxis (min value and max value).
+		<br><br>
+		</ol>
+	</li>
+	<li><b>Step5: Add Bathymetry</b>
+		<ol>
+		You can extract point either to extract fromn a Netcdf file or to extract it from th UDS server.
+		<li><a name="add_bathy">Add bathy</a></li>
+		You first need to extract the point so click on create point, then you left click where you want and you right click when you are done.
+		Then the point you have edited should appear in the editor box. 
+        <br><br>
+		</ol>
+	</li>
+		</li>
+
+	<li><b>	Attribute</b>
+		<ol>
+		<li><a name="eta">ETA</a></li>
+		This still need a bit of work.<br>
+		But if you have a function you must stick in the directory grid_function or tide_function.<br>
+        Every function should work with the same input: myfunct(filename,lim)<br>
+        Where filename is the netcdf file, lim can be either the limit of the data or a the site postion.<br>
+        The output of the function must be a Netcdf file (The function should output the name) or a text file (the function do not output anyting);
+		<br>
+		<li><a name="nsr">NSR</a></li>
+		You first need to extract the point so click on create point, then you left click where you want and you right click when you are done.
+		Then the point you have edited should appear in the editor box. 
+		<br>
+		<li><a name="angle">Angle</a></li>
+		You first need to extract the point so click on create point, then you left click where you want and you right click when you are done.
+		Then the point you have edited should appear in the editor box. 
+		<br>
+		<li><a name="typ">Type</a></li>
+		You first need to extract the point so click on create point, then you left click where you want and you right click when you are done.
+		Then the point you have edited should appear in the editor box. 
+        <br><br>
+		</ol>
+	</li>
+<hr>
+
+</body>
+</html>
