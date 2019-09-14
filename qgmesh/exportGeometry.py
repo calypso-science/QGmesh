@@ -74,6 +74,7 @@ class GeoFile():
         self.corners=[]
         self.intruder=[]
 
+
     def get_corner(self,surface):
         Xcorners=[x[0] for x in self.corners]
         Ycorners=[x[1] for x in self.corners]
@@ -141,11 +142,17 @@ class GeoFile():
 
 
         for physical in self.physicals_ll:
-            if physical == 'Islands' or physical == 'Channels':
+            if physical == 'Islands' or physical == 'Channels' or physical=='QuadPatch':
                 for x in set(self.physicals_ll[physical]):
                     holes.append(self.ll[x])
             elif physical not in 'Inclusion':
                 domain=self.ll[self.physicals_ll[physical][0]]
+
+            if physical=='QuadPatch':
+                quadpatch=self.ll[self.physicals_ll[physical][0]]    
+                sfquad=self.geo.add_plane_surface(quadpatch)
+                self.geo.add_raw_code('Physical Surface("%s") = {%s};' % (sfquad.id,sfquad.id))
+                self.geo.add_raw_code('Recombine Surface {%s};' % sfquad.id)
 
 
             if physical=='Channels': #and grid_type is not 'quad':
@@ -160,12 +167,13 @@ class GeoFile():
         sf=self.geo.add_plane_surface(domain,holes=holes)
         self.geo.add_raw_code('Physical Surface("%s") = {%s};' % (sf.id,sf.id))
 
+
+
         for physical in self.physicals_ll:
             if physical== 'Inclusion':
                 for x in self.intruder:
+                    self.geo.in_surface(x,sf)
 
-                    self.geo.in_surface(x,sf)          
-        
 
         if grid_type =='transfinite':
             ids=self.get_corner(sf)
@@ -212,19 +220,15 @@ class GeoFile():
                 self.geo.set_transfinite_lines([self.l[-1]], trans, progression=progression, bump=bump)
         if group_name=='Inclusion':
             self.intruder.append(self.l[-1])
-            
-
-        #elif :
-        #    lids = [self.writeLine((ids[i],ids[i+1])) for i in range(len(ids)-1)]
-
+                   
 
         if physical :
             for lid in lids :
-                
                 if physical in self.physicals :
                     self.physicals[physical].append(lid)
                 else :
                     self.physicals[physical] = [lid]
+
 
    
 
@@ -259,7 +263,6 @@ class GeoFile():
         physical_idx = fields.indexFromName("physical")
         trans_idx = fields.indexFromName("trans")
         prog_idx = fields.indexFromName("prog")
-
         bump_idx = fields.indexFromName("bump")
 
 
@@ -270,7 +273,6 @@ class GeoFile():
 
         prog=None
         bump=None
-
 
 
         L=[]

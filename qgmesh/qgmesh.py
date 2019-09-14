@@ -904,7 +904,7 @@ class qgmesh:
         added=[]
 
         for child in proj.layerTreeRoot().findGroups():        
-            if child.name() in ['Boundaries','Islands','Channels','Corners','Inclusion']:
+            if child.name() in ['Boundaries','Islands','Channels','Corners','Inclusion','QuadPatch']:
                 if child.name()=='Boundaries':
                     self.geo.extra_gmsh_arguments=child.customProperty('wmsAbstract').split(',')
 
@@ -958,7 +958,7 @@ class qgmesh:
     def initialize_folders_tetra(self):
         """Run method that performs all the real work"""
         # See if OK was pressed
-        groups=['Boundaries','Channels','Islands','Sizing','Inclusion']
+        groups=['Boundaries','Channels','Islands','Sizing','Inclusion','QuadPatch']
         proj = QgsProject.instance()
 
 
