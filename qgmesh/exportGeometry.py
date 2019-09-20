@@ -72,6 +72,8 @@ class GeoFile():
         self.channel_border=[]
         self.Field=[]
         self.corners=[]
+        self.intruder=[]
+
 
     def get_corner(self,surface):
         Xcorners=[x[0] for x in self.corners]
@@ -138,13 +140,19 @@ class GeoFile():
         domain=[]
         channel=[]
 
-        for physical in self.physicals_ll:
 
-            if physical == 'Islands' or physical == 'Channels':
+        for physical in self.physicals_ll:
+            if physical == 'Islands' or physical == 'Channels' or physical=='QuadPatch':
                 for x in set(self.physicals_ll[physical]):
                     holes.append(self.ll[x])
-            else:
+            elif physical not in 'Inclusion':
                 domain=self.ll[self.physicals_ll[physical][0]]
+
+            if physical=='QuadPatch':
+                quadpatch=self.ll[self.physicals_ll[physical][0]]    
+                sfquad=self.geo.add_plane_surface(quadpatch)
+                self.geo.add_raw_code('Physical Surface("%s") = {%s};' % (sfquad.id,sfquad.id))
+                self.geo.add_raw_code('Recombine Surface {%s};' % sfquad.id)
 
 
             if physical=='Channels': #and grid_type is not 'quad':
@@ -158,6 +166,14 @@ class GeoFile():
 
         sf=self.geo.add_plane_surface(domain,holes=holes)
         self.geo.add_raw_code('Physical Surface("%s") = {%s};' % (sf.id,sf.id))
+
+
+
+        for physical in self.physicals_ll:
+            if physical== 'Inclusion':
+                for x in self.intruder:
+                    self.geo.in_surface(x,sf)
+
 
         if grid_type =='transfinite':
             ids=self.get_corner(sf)
@@ -200,18 +216,19 @@ class GeoFile():
 
         lids = [self.writeLine(ids)] 
         if group_name == 'Channels' or grid_type=='transfinite':
-            self.geo.set_transfinite_lines([self.l[-1]], trans, progression=progression, bump=bump)
-        #elif :
-        #    lids = [self.writeLine((ids[i],ids[i+1])) for i in range(len(ids)-1)]
-
+            if trans is not None:
+                self.geo.set_transfinite_lines([self.l[-1]], trans, progression=progression, bump=bump)
+        if group_name=='Inclusion':
+            self.intruder.append(self.l[-1])
+                   
 
         if physical :
             for lid in lids :
-                
                 if physical in self.physicals :
                     self.physicals[physical].append(lid)
                 else :
                     self.physicals[physical] = [lid]
+
 
    
 
@@ -246,7 +263,6 @@ class GeoFile():
         physical_idx = fields.indexFromName("physical")
         trans_idx = fields.indexFromName("trans")
         prog_idx = fields.indexFromName("prog")
-
         bump_idx = fields.indexFromName("bump")
 
 
@@ -257,7 +273,6 @@ class GeoFile():
 
         prog=None
         bump=None
-
 
 
         L=[]
@@ -431,17 +446,34 @@ class GeoFile():
                     xmax=float('inf')*-1
                     ymin=float('inf')
                     ymax=float('inf')*-1
-                    lines = geom.asMultiPolyline()
-                    for line in lines:
-                        if xform :
-                            line = [xform.transform(x) for x in line]
-                        for pt in line:
-                            xmin=min(xmin,pt[0])
-                            xmax=max(xmax,pt[0])
-                            ymin=min(xmin,pt[1])
-                            ymax=max(ymax,pt[1])
+                    
+                    if geom.isMultipart() :
+                        polys = geom.asMultiPolygon()  
+                        # for pol in poly:
+                        # lines=pol.asPolygon()
+                        for poly in polys:
+                            for line in poly:
+                            #if xform :
+                            #    line = [xform.transform(x) for x in line]
+                                for pt in line:
+                                    xmin=min(xmin,pt[0])
+                                    xmax=max(xmax,pt[0])
+                                    ymin=min(ymin,pt[1])
+                                    ymax=max(ymax,pt[1])
 
-                    self.Field.append(self.addBox(xmin,xmax,ymin,ymax,**options))
+                            self.Field.append(self.addBox(xmin,xmax,ymin,ymax,**options))                                            
+                    else:
+                        lines = geom.asPolygon()
+                        for line in lines:
+                            if xform :
+                                line = [xform.transform(x) for x in line]
+                            for pt in line:
+                                xmin=min(xmin,pt[0])
+                                xmax=max(xmax,pt[0])
+                                ymin=min(ymin,pt[1])
+                                ymax=max(ymax,pt[1])
+
+                        self.Field.append(self.addBox(xmin,xmax,ymin,ymax,**options))
 
 
 

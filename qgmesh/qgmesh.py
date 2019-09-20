@@ -49,6 +49,8 @@ import uuid
 from .runNICEGRID2 import *
 from .meshselector import *
 
+import platform
+
 class qgmesh:
     """QGIS Plugin Implementation."""
 
@@ -184,7 +186,14 @@ class qgmesh:
         return action
 
     def initGui(self):
-        icon_path = ':/plugins/qgmesh/icon.png'
+        root=os.path.dirname(__file__)
+        meshit_icon=os.path.join(root,'icons','MeshIt.ico')
+        refresh_icon=os.path.join(root,'icons','refresh.png')
+        wavelength_icon=os.path.join(root,'icons','wavelength.png')
+        scale_icon=os.path.join(root,'icons','scale.ico')
+        tape_icon=os.path.join(root,'icons','tape.png')
+
+        icon_path = ''
 
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
         self.menu = QMenu(self.iface.mainWindow())
@@ -196,17 +205,8 @@ class qgmesh:
         self.menu_init.setObjectName("Initializing")
         self.menu_init.setTitle("Initializing")
 
-        reload_data=self.add_action(
-            icon_path,
-            text=self.tr(u'Reload saved data'),
-            callback=self.reload_data,
-            parent=self.iface.mainWindow(),
-            add_to_toolbar=False,
-            add_to_menu=False,
-            status_tip="Reload all saved data.",
-            whats_this="Reload all saved data.")
 
-        self.menu_init.addAction(reload_data)
+     
 
 
         init_fold_tetra=self.add_action(
@@ -258,7 +258,7 @@ class qgmesh:
             text=self.tr(u'Update geometry'),
             callback=self.update_geofile,
             parent=self.iface.mainWindow(),
-            add_to_toolbar=True,
+            add_to_toolbar=False,
             add_to_menu=False,
             status_tip="Update the Geometry",
             whats_this="This will update th geometry needed by GMSH.")
@@ -287,7 +287,7 @@ class qgmesh:
         self.menu_mesh.setTitle("Meshing")
 
         mesh_it=self.add_action(
-            icon_path,
+            meshit_icon,
             text=self.tr(u'Mesh it'),
             callback=self.mesh_geofile,
             parent=self.iface.mainWindow(),
@@ -335,7 +335,7 @@ class qgmesh:
         self.menu_mesh.addAction(import_msh)
 
         refresh_msh=self.add_action(
-            icon_path,
+            refresh_icon,
             text=self.tr(u'Refresh Mesh'),
             callback=self.refresh_mesh,
             parent=self.iface.mainWindow(),
@@ -409,11 +409,11 @@ class qgmesh:
         self.raster_calc.setTitle("Raster calculator")
 
         to_wavelength=self.add_action(
-            icon_path,
+            wavelength_icon,
             text=self.tr(u'convert to wavelength'),
             callback=self.to_wavelength,
             parent=self.menu_size,
-            add_to_toolbar=False,
+            add_to_toolbar=True,
             add_to_menu=False,
             status_tip=".",
             whats_this=".")
@@ -421,11 +421,11 @@ class qgmesh:
         self.raster_calc.addAction(to_wavelength)
 
         to_scale=self.add_action(
-            icon_path,
+            scale_icon,
             text=self.tr(u'Scale value to range'),
             callback=self.to_scale,
             parent=self.menu_size,
-            add_to_toolbar=False,
+            add_to_toolbar=True,
             add_to_menu=False,
             status_tip=".",
             whats_this=".")
@@ -433,11 +433,11 @@ class qgmesh:
         self.raster_calc.addAction(to_scale)
 
         to_dist=self.add_action(
-            icon_path,
+            tape_icon,
             text=self.tr(u'Calculate distances'),
             callback=self.to_dist,
             parent=self.menu_size,
-            add_to_toolbar=False,
+            add_to_toolbar=True,
             add_to_menu=False,
             status_tip=".",
             whats_this=".")
@@ -455,6 +455,14 @@ class qgmesh:
         # will be set False in run()
         self.first_start = True
 
+
+        plat=platform.system()
+        if plat in 'Linux':
+            self.tempdir = "/tmp"
+        elif plat in 'Windows':
+            self.tempdir ="C:\TEMP"
+        elif plat in 'Darwin':
+            self.tempdir='/tmp'
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
@@ -511,7 +519,7 @@ class qgmesh:
             if layer.type()==QgsMapLayer.RasterLayer:
                 raster.append(layer.name())
 
-        ex = raster_calculator(raster,'wavelength')
+        ex = raster_calculator(raster,'wavelength',tmp= self.tempdir)
         ex.show()
         ex.exec_()
 
@@ -523,7 +531,7 @@ class qgmesh:
             if layer.type()==QgsMapLayer.RasterLayer:
                 raster.append(layer.name())
 
-        ex = raster_calculator(raster,'scale')
+        ex = raster_calculator(raster,'scale',tmp= self.tempdir)
         ex.show()
         ex.exec_()
 
@@ -535,7 +543,7 @@ class qgmesh:
             if layer.type()!=QgsMapLayer.RasterLayer:
                 raster.append(layer.name())
 
-        ex = raster_calculator(raster,'distance')
+        ex = raster_calculator(raster,'distance',tmp= self.tempdir)
         ex.show()
         ex.exec_() 
 
@@ -685,7 +693,7 @@ class qgmesh:
                 shapefile.append(layer.name())
 
 
-        run_cleaner = RunSCHISMDialog(self.mesh,shapefile)
+        run_cleaner = RunSCHISMDialog(self.mesh,shapefile,tmp= self.tempdir)
         root=os.path.dirname(__file__)
         nicegrid=os.path.join(root,'nicegrid2')
         if not os.path.isfile(nicegrid):
@@ -696,7 +704,7 @@ class qgmesh:
         run_cleaner.exec_()
 
         import_function=load_IO()
-        self.mesh=import_function['schismIO']['import'](self.mesh,'/tmp/gridout.gr3')   
+        self.mesh=import_function['schismIO']['import'](self.mesh,os.path.join( self.tempdir,'gridout.gr3'))   
         self.mesh._calculate_face_nodes()
 #                self.mesh._remove_hanging_nodes()
         self.mesh.calc_parameters()
@@ -816,23 +824,40 @@ class qgmesh:
 
     def add_bathy(self):
         proj = QgsProject.instance()
+        
+        Mesh=[]
+        for child in proj.layerTreeRoot().children():
+            if isinstance(child, QgsLayerTreeGroup) and child.name()[:4]=='Mesh':
+                Mesh.append(child.name())
+
+        msh=mesh_selector(Mesh)
+        msh_name=msh.exec_()
+        value=int(msh_name.replace('Mesh_',''))
+        self.mesh=self.rebuild_mesh(value=value)
+
         raster=[]
         for child in proj.layerTreeRoot().findLayers():   
             layer = proj.mapLayer(child.layerId())     
             if layer.type()==QgsMapLayer.RasterLayer:
                 raster.append(layer.name())
 
-        ex = raster_calculator(raster,'choose')
+        if len(raster)==0:
+            self.iface.messageBar().pushMessage("Error", "You need at Raster to add bathy", level=Qgis.Warning)
+            return
+
+        ex = raster_calculator(raster,'choose',tmp= self.tempdir)
         ex.show()
         layer=ex.exec_()
         
         self.mesh.AddBathy(layer)
 
-        for child in proj.layerTreeRoot().findLayers():   
-            layer = proj.mapLayer(child.layerId())     
-            if layer.name()=='Nodes':
-                update_field(layer,'Depth',self.mesh.z)
-                assign_bathy(layer)
+        for child in proj.layerTreeRoot().findGroups():      
+            if child.name() in ['Mesh_'+str(value)]:
+                for sub_subChild in child.children():
+                    if sub_subChild.name()=='Nodes':
+                        layer = proj.mapLayer(sub_subChild.layerId())     
+                        update_field(layer,'Depth',self.mesh.z)
+                        assign_bathy(layer)
 
 
 
@@ -879,7 +904,7 @@ class qgmesh:
         added=[]
 
         for child in proj.layerTreeRoot().findGroups():        
-            if child.name() in ['Boundaries','Islands','Channels','Corners']:
+            if child.name() in ['Boundaries','Islands','Channels','Corners','Inclusion','QuadPatch']:
                 if child.name()=='Boundaries':
                     self.geo.extra_gmsh_arguments=child.customProperty('wmsAbstract').split(',')
 
@@ -927,21 +952,13 @@ class qgmesh:
         f.close()
         self.iface.messageBar().pushMessage("Info", "%s exported " % fname, level=Qgis.Info)
 
-    def reload_data(self):
-        proj = QgsProject.instance()
-        mesh_out=proj.readEntry("QGmsh", "mesh_file", "")[0]
-        if len(mesh_out)>0:
-            msh=meshio.read(mesh_out)
-            self.mesh=Mesh(msh)
-            Mesh2Shapefile(self.mesh)
-
-        
+       
 
 
     def initialize_folders_tetra(self):
         """Run method that performs all the real work"""
         # See if OK was pressed
-        groups=['Boundaries','Channels','Islands','Sizing']
+        groups=['Boundaries','Channels','Islands','Sizing','Inclusion','QuadPatch']
         proj = QgsProject.instance()
 
 

@@ -22,7 +22,7 @@ class EmittingStream(QObject):
 
 class RunSCHISMDialog(QtWidgets.QDialog) :
 
-    def __init__(self,mesh,shapefiles=None, parent=None) :
+    def __init__(self,mesh,shapefiles=None, parent=None,tmp='/tmp') :
 
         super(RunSCHISMDialog, self).__init__(parent)
         self.setWindowTitle("Cleaning trimesh grid")
@@ -64,6 +64,8 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
         hlayout.addWidget(self.killBtn)
         self.resize(600, 600)
         self.setLayout(layout)
+
+        self.tempdir=tmp
 
     def killp(self) :
         self.p.kill()
@@ -119,8 +121,8 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
 
     def clean(self):
         nicegrid2=os.path.join(os.path.dirname(__file__),'nicegrid2')
-        fname='/tmp/gridin.gr3'
-        fout='/tmp/gridout.gr3'
+        fname=os.path.join( self.tempdir,'gridin.gr3')
+        fout=os.path.join( self.tempdir,'gridout.gr3')
         algo=self.algoSelector.currentIndex()
         file3=self.ShapefileSelector.currentItem().text()
         if file3 !="None":

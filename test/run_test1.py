@@ -27,7 +27,7 @@ from tools import get_format_from_gmsh,Mesh2Shapefile
 
 geo = pygmsh.built_in.Geometry()
 
-with open('/home/remy/file.geo', 'r') as fin:
+with open('/home/remy/Documents/test/file.geo', 'r') as fin:
     geo._GMSH_CODE.append(fin.read())
 
 msh=pygmsh.generate_mesh(geo,extra_gmsh_arguments=['-2','-algo','front2d','-epslc1d','1e-3'])
@@ -41,7 +41,7 @@ me=Mesh(mesh.points[:,0],mesh.points[:,1],mesh.points[:,2],triangles,\
     physical=mesh.field_data,\
     physicalID=physicalID)
 
-import pdb;pdb.set_trace()
+
 Mesh2Shapefile(me)
 
 
