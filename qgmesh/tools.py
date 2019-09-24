@@ -314,7 +314,7 @@ def write_raster(shapesSHPFilename,rasterisedShapesFilename,xy,res):
 
     gdal_rasterize_cmd = 'gdal_rasterize -q -burn 1 -a_nodata 0 -init 0 -at -tr %f %f -te %f %f %f %f -of netCDF %s %s' \
     % (delta_xi,delta_eta,xiMin,etaMin,xiMax,etaMax,shapesSHPFilename,rasterisedShapesFilename)
-
+    iface.messageBar().pushMessage("Info", gdal_rasterize_cmd, level=Qgis.Info)
     os.system(gdal_rasterize_cmd)
 
 

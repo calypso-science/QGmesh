@@ -40,6 +40,7 @@ class raster_calculator(QtWidgets.QDialog):
             self.setWindowTitle(self.title)
             self.initDist(layout)
 
+
         if funct_name=='choose':
             self.title = 'Choose a raster'
             self.setWindowTitle(self.title)
@@ -48,6 +49,16 @@ class raster_calculator(QtWidgets.QDialog):
         self.setMaximumHeight(10)
         self.resize(max(400, self.width()), self.height())
         self.show()
+
+    def getval(self):
+        raster=self.rasterSelector.currentItem().text()
+        layer=get_layer(raster)
+        provider = layer.dataProvider()
+        stats = provider.bandStatistics(1, QgsRasterBandStats.All, layer.extent(), 0)
+        min_raster = stats.minimumValue
+        max_raster = stats.maximumValue
+        self.origin_min.setText(str(min_raster))
+        self.origin_max.setText(str(max_raster))
 
     def initChoose(self,layout):
         self.runLayout = CancelRunLayout(self,"Choose", self.choose_raster, layout)
@@ -78,7 +89,16 @@ class raster_calculator(QtWidgets.QDialog):
 
 
     def initScale(self,layout):
-       
+ 
+        self.origin_min=QtWidgets.QLineEdit()
+        self.origin_min.setText("50")
+        TitleLayout("Original minimum value", self.origin_min, layout)
+
+        self.origin_max=QtWidgets.QLineEdit()
+        self.origin_max.setText("300")
+        TitleLayout("Original maximum value", self.origin_max, layout)
+
+
         self.minimum_value=QtWidgets.QLineEdit()
         self.minimum_value.setText("50")
         TitleLayout("minimum value", self.minimum_value, layout)
@@ -86,6 +106,8 @@ class raster_calculator(QtWidgets.QDialog):
         self.maximum_value=QtWidgets.QLineEdit()
         self.maximum_value.setText("300")
         TitleLayout("maximum value", self.maximum_value, layout)
+
+        self.rasterSelector.itemClicked.connect(self.getval)
 
         self.runLayout = CancelRunLayout(self,"calculate", self.scale_calc, layout)
         self.runLayout.runButton.setEnabled(True)
@@ -173,16 +195,18 @@ class raster_calculator(QtWidgets.QDialog):
         
         layer=get_layer(raster)
         shapein=layer.dataProvider().dataSourceUri()
-        provider = layer.dataProvider()
+        #provider = layer.dataProvider()
 
-        stats = provider.bandStatistics(1, QgsRasterBandStats.All, layer.extent(), 0)
-        min_raster = stats.minimumValue
-        max_raster = stats.maximumValue
+        #stats = provider.bandStatistics(1, QgsRasterBandStats.All, layer.extent(), 0)
+        min_raster = float(self.origin_min.text())
+        max_raster = float(self.origin_max.text())
         
         root,f=os.path.split(shapein)
         shapeout=os.path.join(root,'scaled.tif')
 
-        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="((((%f-%f)*(A-%f))/(%f-%f))+%f)" --NoDataValue=-99' % (shapein,shapeout,Vmax,Vmin,min_raster,max_raster,min_raster,Vmin))
+        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="((((%f-%f)*(A-%f))/(%f-%f))+%f)" --NoDataValue=-99' % (shapein,os.path.join( self.tempdir,'tmp1.tif'),Vmax,Vmin,min_raster,max_raster,min_raster,Vmin))
+        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="maximum(A,%f)" --NoDataValue=-99' % (os.path.join( self.tempdir,'tmp1.tif'),os.path.join( self.tempdir,'tmp2.tif'),Vmin))
+        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="minimum(A,%f)" --NoDataValue=-99' % (os.path.join( self.tempdir,'tmp2.tif'),shapeout,Vmax))
 
         add_raster(shapeout,'scaled')
         self.close()
