@@ -5,7 +5,7 @@ from PyQt5.QtCore import Qt,pyqtRemoveInputHook,QFileInfo
 import pygmsh
 import os
 from .tools import writeRasterLayer
-
+from pygmsh.built_in.geometry import Spline
 
 
 
@@ -118,14 +118,28 @@ class GeoFile():
         return self.writePoint(pt, lc)
 
     def writeLine(self, pts) :
-
         p=[]
         for pt in pts:
             p.append(self.p[pt])
-  
-        self.l.append(self.geo.add_spline(p))
-        self.il += 1
-        return self.il - 1
+        if len(self.l)>0:
+            sp=Spline(p)
+            for il,li in enumerate(self.l):
+                #import pdb;pdb.set_trace()
+                if sp.code.split('{')[1]==li.code.split('{')[1]:
+                    #self.l.append(sp)
+                    return il
+                    
+
+            self.geo._GMSH_CODE.append(sp.code)
+            self.l.append(sp)
+            self.il += 1
+            return self.il - 1
+
+        else:        
+            self.l.append(self.geo.add_spline(p))
+            self.il += 1
+        
+            return self.il - 1
 
     def writeLineLoop(self, ll) :
         strid = [self.l[i] if o else -self.l[i] for i, o in ll.lines]
@@ -217,9 +231,9 @@ class GeoFile():
         lids = [self.writeLine(ids)] 
         if group_name == 'Channels' or grid_type=='transfinite':
             if trans is not None:
-                self.geo.set_transfinite_lines([self.l[-1]], trans, progression=progression, bump=bump)
+                self.geo.set_transfinite_lines([self.l[lids[-1]]], trans, progression=progression, bump=bump)
         if group_name=='Inclusion':
-            self.intruder.append(self.l[-1])
+            self.intruder.append(self.l[lids[-1]])
                    
 
         if physical :
