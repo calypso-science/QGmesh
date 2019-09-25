@@ -190,7 +190,7 @@ class qgmesh:
         meshit_icon=os.path.join(root,'icons','MeshIt.ico')
         refresh_icon=os.path.join(root,'icons','refresh.png')
         wavelength_icon=os.path.join(root,'icons','wavelength.png')
-        scale_icon=os.path.join(root,'icons','scale.ico')
+        scale_icon=os.path.join(root,'icons','Downsize.png')
         tape_icon=os.path.join(root,'icons','tape.png')
 
         icon_path = ''
@@ -931,6 +931,7 @@ class qgmesh:
 
         if len(self.geo.Field)>0:
             self.geo.geo.add_background_field(self.geo.Field,aggregation_type='Min')
+            #import pdb;pdb.set_trace()
 
 
     def export_geofile(self):

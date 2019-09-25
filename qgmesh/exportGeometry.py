@@ -6,7 +6,7 @@ import pygmsh
 import os
 from .tools import writeRasterLayer
 from pygmsh.built_in.geometry import Spline
-
+import re
 
 
 
@@ -174,6 +174,7 @@ class GeoFile():
                     channel.append(self.ll[x])
                     sf=self.geo.add_plane_surface(self.ll[x])
                     self.geo. set_transfinite_surface(sf)
+
                     self.geo.add_raw_code('Recombine Surface {%s};' % sf.id)
                     self.geo.add_raw_code('Physical Surface("%s") = {%s};' % (sf.id,sf.id))
 
@@ -205,13 +206,16 @@ class GeoFile():
             self.geo.add_raw_code('Physical Curve("%s") = {%s};' % (physical,','.join(ids)))
 
 
-    def addLineFromCoords(self, pts, xform, lc, physical,group_name,trans=None,bump=None,progression=None,grid_type='tetra') :
+    def addLineFromCoords(self, pts, xform, lc, physical,group_name,trans=None,bump=None,progression=None,res=None,grid_type='tetra') :
         if trans ==0:
             trans=None
         if bump==0:
             bump=None
         if progression==0:
             progression=None
+        if res==0:
+            res=None
+
 
 
        
@@ -232,6 +236,11 @@ class GeoFile():
         if group_name == 'Channels' or grid_type=='transfinite':
             if trans is not None:
                 self.geo.set_transfinite_lines([self.l[lids[-1]]], trans, progression=progression, bump=bump)
+            if res is not None:
+                line_length=(abs(self.l[lids[-1]].points[0].x[0]-self.l[lids[-1]].points[1].x[0])**2+abs(self.l[lids[-1]].points[0].x[0]-self.l[lids[-1]].points[1].x[0])**2)**0.5
+                npoint=round(line_length/res)+1
+                self.geo.set_transfinite_lines([self.l[lids[-1]]], npoint, progression=progression, bump=bump)
+
         if group_name=='Inclusion':
             self.intruder.append(self.l[lids[-1]])
                    
@@ -278,6 +287,7 @@ class GeoFile():
         trans_idx = fields.indexFromName("trans")
         prog_idx = fields.indexFromName("prog")
         bump_idx = fields.indexFromName("bump")
+        line_res_idx=fields.indexFromName("res")
 
 
         
@@ -287,6 +297,7 @@ class GeoFile():
 
         prog=None
         bump=None
+        line_res=None
 
 
         L=[]
@@ -311,13 +322,16 @@ class GeoFile():
             if bump_idx >= 0 :
                 bump = feature[bump_idx]
 
+            if line_res_idx>=0:
+                line_res=feature[line_res_idx]
+
 
             if geom.type() == QgsWkbTypes.PolygonGeometry :
 
                 for loop in geom.asMultiPolygon() :
                     for line in loop:
 
-                        self.addLineFromCoords(line, xform, lc, physical,group_name,trans,bump,prog,grid_type)
+                        self.addLineFromCoords(line, xform, lc, physical,group_name,trans,bump,prog,line_res,grid_type)
 
 
             elif geom.type() == QgsWkbTypes.LineGeometry :
@@ -327,7 +341,7 @@ class GeoFile():
                 else :
                     for line in lines :
 
-                        self.addLineFromCoords(line, xform, lc, physical ,group_name,trans,bump,prog,grid_type)
+                        self.addLineFromCoords(line, xform, lc, physical ,group_name,trans,bump,prog,line_res,grid_type)
 
 
             elif geom.type() == QgsWkbTypes.PointGeometry :
