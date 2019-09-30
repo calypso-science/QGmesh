@@ -7,6 +7,7 @@ import os
 from .tools import writeRasterLayer
 from pygmsh.built_in.geometry import Spline
 import re
+import numpy as np
 
 
 
@@ -143,6 +144,20 @@ class GeoFile():
 
     def writeLineLoop(self, ll) :
         strid = [self.l[i] if o else -self.l[i] for i, o in ll.lines]
+        edgeX=np.ones((len(strid),2))
+        edgeY=np.ones((len(strid),2))
+        for i,st in enumerate(strid):
+            edgeX[i,0]=st.points[0].x[0]
+            edgeX[i,1]=st.points[1].x[0]
+            edgeY[i,0]=st.points[0].x[1]
+            edgeY[i,1]=st.points[1].x[1]
+
+        clockwise=np.sum(np.diff(edgeX).T*np.sum(edgeY,axis=1))<0
+
+        if clockwise:
+            strid = [self.l[i] if not o else -self.l[i] for i, o in ll.lines]
+
+
 
         self.ll.append(self.geo.add_line_loop(strid))
         self.ill += 1
