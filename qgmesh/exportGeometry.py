@@ -236,7 +236,7 @@ class GeoFile():
         if group_name == 'Channels' or grid_type=='transfinite':
             if trans is not None:
                 self.geo.set_transfinite_lines([self.l[lids[-1]]], trans, progression=progression, bump=bump)
-            if res is not None:
+            elif res is not None:
                 line_length=(abs(self.l[lids[-1]].points[0].x[0]-self.l[lids[-1]].points[1].x[0])**2+abs(self.l[lids[-1]].points[0].x[0]-self.l[lids[-1]].points[1].x[0])**2)**0.5
                 npoint=round(line_length/res)+1
                 self.geo.set_transfinite_lines([self.l[lids[-1]]], npoint, progression=progression, bump=bump)

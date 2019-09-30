@@ -120,8 +120,12 @@ class Mesh(object) :
         
         if len(x)>0:
             self.faces=faces.astype('int')
+
+            hg_node=self._find_hanging_nodes()
+            if len(hg_node)>0:
+                self._remove_nodes(hg_node)
+            
             self._calculate_face_nodes()
-            #self._remove_hanging_nodes()
             self.calc_parameters()
 
 
@@ -329,54 +333,39 @@ class Mesh(object) :
 
         self.stri=stri
 
-    def _remove_hanging_nodes(self):
+    def _find_hanging_nodes(self):
+        all_cells_flat = np.concatenate([vals for vals in self.faces]).flatten()
+        orphaned_nodes = np.setdiff1d(np.arange(len(self.x)), all_cells_flat)
 
-        unique_nodes=np.unique(self.faces+1)
-        unique_nodes=unique_nodes[unique_nodes!=0]
+        return orphaned_nodes
 
-        hanging_nodes = (set(self.nodes) | set(unique_nodes)) - (set(self.nodes) & set(unique_nodes))
-        hanging_nodes=sorted(hanging_nodes)
-        X=self.x.tolist()
-        Y=self.y.tolist()
-        Z=self.z
-        Z[np.isnan(Z)]=0
-        Z=Z.tolist()
-        triangles=self.faces.astype('float')
-        edges=self.edges.astype('float')
-        triangles[triangles==-1]=np.nan
-        for hanging_node in hanging_nodes:
-            edges[edges==hanging_node]=np.nan
+    def _remove_nodes(self,node_to_remove):
+        all_cells_flat = np.concatenate([vals for vals in self.faces]).flatten()
 
 
+        self.x = np.delete(self.x, node_to_remove, axis=0)
+        self.y = np.delete(self.y, node_to_remove, axis=0)
+        self.z = np.delete(self.z, node_to_remove, axis=0)
 
+        # also adapt the point data
+        rem=[]
+        for node in node_to_remove:
+            rem.append(np.nonzero(self.edges==node)[0])
+        rem=np.concatenate([r for r in rem])
+        self.edges = np.delete(self.edges, rem, axis=0)
+        self.physicalID = np.delete(self.physicalID, rem, axis=0)
 
-        
-        if len(hanging_nodes)>0:
-            node_removed=1
-            for hanging_node in hanging_nodes:
-                X[hanging_node-1]=np.nan
-                Y[hanging_node-1]=np.nan
-                Z[hanging_node-1]=np.nan
+        # We now need to adapt the cells too.
+        diff = np.zeros(len(all_cells_flat), dtype=all_cells_flat.dtype)
+        for orphan in node_to_remove:
+            diff[np.argwhere(all_cells_flat > orphan)] += 1
+        all_cells_flat -= diff
 
-                triangles[triangles>hanging_node-node_removed]=triangles[triangles>hanging_node-node_removed]-1
+        ss = self.faces.shape
+        nn = np.prod(ss)
+        self.faces = all_cells_flat[0 : 0 + nn].reshape(ss)
 
-                edges[edges>hanging_node-node_removed]=edges[edges>hanging_node-node_removed]-1
-                node_removed+=1
-
-
-            triangles[np.isnan(triangles)]=-1
-            self.faces=triangles.astype('int64')
-            
-            self.physicalID=np.asarray([self.physicalID[x] for x in range(0,len(edges)) if str(edges[x]) != 'nan'])
-            self.edges=np.asarray([x for x in edges if str(x) != 'nan'])
-            self.edges=self.edges.astype('int64')
-            self.x=np.asarray([x for x in X if str(x) != 'nan'])
-            self.y=np.asarray([x for x in Y if str(x) != 'nan'])
-            self.z=np.asarray([x for x in Z if str(x) != 'nan'])
-
-
-
-
+    
 
     def writeShapefile(self, filename,shape_type):
 
