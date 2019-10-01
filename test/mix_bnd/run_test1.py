@@ -1,13 +1,13 @@
 import sys,os
-sys.path.append(os.path.join('/home/remy/Softwareos.path.dirname(__file__),'..','..','qgmesh')) 
+sys.path.append(os.path.join('/home/remy/Software',os.path.dirname(__file__),'..','..','qgmesh'))
+
 from qgis.core import (
      QgsApplication, 
      QgsProcessingFeedback, 
      QgsVectorLayer,
      QgsProject,
      QgsCoordinateTransform,
-     QgsMeshLayer,
-)
+     QgsMeshLayer)
 
 #from exportGeometry import GeoFile
 from utils import get_crs
@@ -77,11 +77,6 @@ for child in proj.layerTreeRoot().findGroups():
     		xform = QgsCoordinateTransform(layer.crs(), crs,proj)
     		geo.add_sizing(layer,xform,child.name())
 
-
-with open('mix.geo', 'w') as f:
-    f.write(geo.geo.get_code() + '\n')
-
-f.close()
 
 
 

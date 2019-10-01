@@ -85,14 +85,18 @@ def get_format_from_gmsh(mesh):
     edges=[]
     tmp=[]
     physicalID=[]
+
+
     for ie,edge in enumerate(mesh.cells['line']):
         if ie>0:
-            if (mesh.cell_data['line']['gmsh:physical'][ie]!=mesh.cell_data['line']['gmsh:physical'][ie-1]) or (ie==len(mesh.cells['line'])-1):
+            if (mesh.cell_data['line']['gmsh:physical'][ie]!=mesh.cell_data['line']['gmsh:physical'][ie-1]) or (ie==len(mesh.cells['line'])-1) or (edge[0]!=mesh.cells['line'][ie-1][1]):
                 if (ie==len(mesh.cells['line'])-1):
                     edges.append(edge[0])
                     tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
 
                 unique_edges=np.array(list(OrderedDict.fromkeys(edges)),'int64')
+                #if mesh.field_data['island'][0]==mesh.cell_data['line']['gmsh:physical'][ie-1]:
+                #    unique_edges=np.concatenate((unique_edges,last_node))
                 Edges=np.concatenate((Edges,unique_edges))
                 Edges=np.concatenate((Edges,np.array([-1])))
                 for x in unique_edges:
@@ -102,7 +106,10 @@ def get_format_from_gmsh(mesh):
                 tmp=[]
 
         edges.append(edge[0])
+        edges.append(edge[1])
+        last_node=edge[1]
         #tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
+        tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
         tmp.append(mesh.cell_data['line']['gmsh:physical'][ie])
 
     

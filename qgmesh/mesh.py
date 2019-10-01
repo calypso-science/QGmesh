@@ -5,6 +5,7 @@ from PyQt5.QtCore import QThread,QVariant,Qt
 import gdal
 from collections import OrderedDict
 import numpy as np
+import copy
 
 
 def bilinear(px, py,gt,band_array, no_data=np.nan):
@@ -341,31 +342,36 @@ class Mesh(object) :
 
     def _remove_nodes(self,node_to_remove):
         all_cells_flat = np.concatenate([vals for vals in self.faces]).flatten()
-
+        all_nodes_flat = copy.deepcopy(self.edges)
 
         self.x = np.delete(self.x, node_to_remove, axis=0)
         self.y = np.delete(self.y, node_to_remove, axis=0)
         self.z = np.delete(self.z, node_to_remove, axis=0)
-
+       
         # also adapt the point data
         rem=[]
         for node in node_to_remove:
             rem.append(np.nonzero(self.edges==node)[0])
         rem=np.concatenate([r for r in rem])
-        self.edges = np.delete(self.edges, rem, axis=0)
-        self.physicalID = np.delete(self.physicalID, rem, axis=0)
 
         # We now need to adapt the cells too.
         diff = np.zeros(len(all_cells_flat), dtype=all_cells_flat.dtype)
+        diff_node = np.zeros(len(all_nodes_flat), dtype=all_nodes_flat.dtype)
         for orphan in node_to_remove:
+            diff_node[np.argwhere(all_nodes_flat > orphan)] += 1
             diff[np.argwhere(all_cells_flat > orphan)] += 1
         all_cells_flat -= diff
+        all_nodes_flat -= diff_node
 
         ss = self.faces.shape
         nn = np.prod(ss)
         self.faces = all_cells_flat[0 : 0 + nn].reshape(ss)
+        self.edges = all_nodes_flat
 
-    
+
+        self.edges = np.delete(self.edges, rem, axis=0)
+        self.physicalID = np.delete(self.physicalID, rem, axis=0)
+
 
     def writeShapefile(self, filename,shape_type):
 
@@ -427,22 +433,24 @@ class Mesh(object) :
                 fileWriter.addFeature(newFeature)
 
         if shape_type=='edges':
-            #import pdb;pdb.set_trace()
-            inv_map = {v[0]: k for k, v in self.physical.items()}
-            points=[]
-            edgeN=0
-            for ie,edge in enumerate(self.edges):
-                if edge>=0:
-                    points.append(QgsPointXY(self.x[edge],self.y[edge]))
-                else:
-                    newFeature = QgsFeature()
-                    newFeature.setGeometry(QgsGeometry.fromPolylineXY(points))
-                    newFeature.setFields(fields)
-                    idx=np.max([ie-1,0])
-                    newFeature.setAttributes([int(edgeN+1),int(self.physicalID[idx]),inv_map[self.physicalID[idx]]])
-                    points=[]
-                    fileWriter.addFeature(newFeature)
-                    edgeN+=1
+ 
+            for key in self.physical:
+                edgID=np.nonzero(np.logical_or(self.physicalID==self.physical[key][0],np.asarray(self.physicalID)==0))[0]
+                points=[]
+                edgeN=0
+                for i,edg in enumerate(edgID):
+                    if self.physicalID[edg]>0:
+                        points.append(QgsPointXY(self.x[self.edges[edg]],self.y[self.edges[edg]]))
+                    elif len(points)>0:
+                        newFeature = QgsFeature()
+                        newFeature.setGeometry(QgsGeometry.fromPolylineXY(points))
+                        newFeature.setFields(fields)
+                        newFeature.setAttributes([int(edgeN+1),int(self.physical[key][0]),key])  
+                        fileWriter.addFeature(newFeature)                      
+                        points=[]
+                        edgeN+=1
+
+
 
         if shape_type=='faces':
             for ie in range(0,len(self.faces)):

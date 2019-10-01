@@ -134,10 +134,11 @@ def export_file(mesh,fname):
 
         if n==0:
             bnd=[]
-        elif mesh.physicalID[n]<=0:
-            Bnd[mesh.physicalID[n-1]].append(bnd)
+        elif mesh.physicalID[n]<=0 and len(bnd)>0:
+            Bnd[phyID].append(bnd)
             bnd=[]
         else:
+            phyID=mesh.physicalID[n]
             bnd.append(mesh.edges[n])
 
 #        if n==len(mesh.physicalID)-1:
@@ -193,7 +194,7 @@ def export_file(mesh,fname):
     fileWrite.write('%i = Number of land boundaries\n' % bnd)
     # numbr of boundary node
     nope=0
-    for name in ['coast','islands']:
+    for name in ['coast','island']:
         if name in mesh.physical:
             for n in range(0,len(Bnd[mesh.physical[name][0]])):
                 nope+=len(Bnd[mesh.physical[name][0]][n])
