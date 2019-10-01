@@ -152,7 +152,7 @@ class GeoFile():
             edgeY[i,0]=st.points[0].x[1]
             edgeY[i,1]=st.points[1].x[1]
 
-        clockwise=np.sum(np.diff(edgeX).T*np.sum(edgeY,axis=1))<0
+        clockwise=np.sum(np.diff(edgeX).T*np.sum(edgeY,axis=1))>0
 
         if clockwise:
             strid = [self.l[i] if not o else -self.l[i] for i, o in ll.lines]
