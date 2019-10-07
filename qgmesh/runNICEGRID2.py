@@ -106,8 +106,8 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
         self.closeBtn.show()
         self.closeBtn.setFocus()
         self.killBtn.hide()
-        if os.path.isfile(os.path.join(os.path.dirname(__file__),'nicegrid.flag')):
-            os.system('rm %s' % os.path.join(os.path.dirname(__file__),'nicegrid.flag'))
+        #if os.path.isfile(os.path.join(os.path.dirname(__file__),'nicegrid.flag')):
+        #    os.system('rm %s' % os.path.join(os.path.dirname(__file__),'nicegrid.flag'))
 
     def onError(self, state):
         if self.killed :

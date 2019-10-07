@@ -134,8 +134,13 @@ class Mesh(object) :
     def calc_parameters(self):
         self.nsr=np.ones(len(self.faces))*0.
         self.res=np.ones(len(self.faces))*0.
+
+        
         
         self.areas=self._calculate_areas()
+        self.volumes=self.areas*self.zctr
+        dry=self.volumes<0
+        self.volumes[dry]=0
         self.eta=self._calculate_eta()
         
         self.min_angle=self._minimumAngle()
@@ -254,6 +259,12 @@ class Mesh(object) :
     def _calculate_res(self):
         self.res=2*np.sqrt(self.areas/np.pi)
 
+#    def _calculate_volumes(self):
+#        #self.volumes=copy.deepcopy(self.areas[:])#*self.zctr[:]#self.zctr
+#        #dry=self.volumes<0
+#        #self.volumes[dry]=0
+
+
     def _calculate_areas(self):
         tri=self.faces[:,3]<0
         quad=self.faces[:,3]>=0
@@ -309,15 +320,18 @@ class Mesh(object) :
     def _calculate_face_nodes(self):
         self.xctr=np.ones(len(self.faces))*-1.
         self.yctr=np.ones(len(self.faces))*-1.
+        self.zctr=np.ones(len(self.faces))*-1.
 
         for face in range(0,len(self.faces)):
             if self.faces[face,-1]<0:
                 self.xctr[face]=np.sum(self.x[self.faces[face,0:3]])/3
                 self.yctr[face]=np.sum(self.y[self.faces[face,0:3]])/3
+                self.zctr[face]=np.sum(self.z[self.faces[face,0:3]])/3
 
             else:
                 self.xctr[face]=np.sum(self.x[self.faces[face,0:4]])/4
                 self.yctr[face]=np.sum(self.y[self.faces[face,0:4]])/4
+                self.zctr[face]=np.sum(self.z[self.faces[face,0:4]])/4
 
 
     def _build_string(self):
@@ -406,6 +420,7 @@ class Mesh(object) :
             fields.append(QgsField("Node4", QVariant.Int,'integer',11,0))
             fields.append(QgsField("type", QVariant.Int,'integer', 1, 0))
             fields.append(QgsField("area", QVariant.Int,'integer', 9, 0))
+            fields.append(QgsField("volume", QVariant.Int,'integer', 9, 0))
             fields.append(QgsField("resolution", QVariant.Int,'integer', 9, 0))
             fields.append(QgsField("ETA", QVariant.Double,'double', 3, 2))
             fields.append(QgsField("NSR", QVariant.Double,'double', 3, 2))
@@ -433,7 +448,7 @@ class Mesh(object) :
                 fileWriter.addFeature(newFeature)
 
         if shape_type=='edges':
- 
+
             for key in self.physical:
                 edgID=np.nonzero(np.logical_or(self.physicalID==self.physical[key][0],np.asarray(self.physicalID)==0))[0]
                 points=[]
@@ -472,7 +487,7 @@ class Mesh(object) :
                 newFeature.setAttributes([int(ie+1),\
                     int(self.faces[ie,0]+1),int(self.faces[ie,1]+1),int(self.faces[ie,2]+1),int(self.faces[ie,3]+1),\
                     int(nface),\
-                    float('%9.f' % self.areas[ie]),float('%9.f' % self.res[ie]),\
+                    float('%9.f' % self.areas[ie]),float('%9.f' % self.volumes[ie]),float('%9.f' % self.res[ie]),\
                     float('%3.2f' % self.eta[ie]),float('%3.2f' % self.nsr[ie]),float('%3.2f' % self.min_angle[ie])])
                 fileWriter.addFeature(newFeature)
 

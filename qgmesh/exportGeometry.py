@@ -178,10 +178,11 @@ class GeoFile():
                 domain=self.ll[self.physicals_ll[physical][0]]
 
             if physical=='QuadPatch':
-                quadpatch=self.ll[self.physicals_ll[physical][0]]    
-                sfquad=self.geo.add_plane_surface(quadpatch)
-                self.geo.add_raw_code('Physical Surface("%s") = {%s};' % (sfquad.id,sfquad.id))
-                self.geo.add_raw_code('Recombine Surface {%s};' % sfquad.id)
+                for x in set(self.physicals_ll[physical]):                  
+                    quadpatch=self.ll[x]    
+                    sfquad=self.geo.add_plane_surface(quadpatch)
+                    self.geo.add_raw_code('Physical Surface("%s") = {%s};' % (sfquad.id,sfquad.id))
+                    self.geo.add_raw_code('Recombine Surface {%s};' % sfquad.id)
 
 
             if physical=='Channels': #and grid_type is not 'quad':
