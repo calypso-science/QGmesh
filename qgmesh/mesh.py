@@ -142,7 +142,8 @@ class Mesh(object) :
         if np.any(tri):
             x= self.x[self.faces[tri,:3]]
             y= self.y[self.faces[tri,:3]]
-            idx[tri]= x[:,1]*[y[:,2]-y[:,0]]+x[:,0]*[y[:,1]-y[:,2]]+x[:,2]*[y[:,0]-y[:,1]]
+         
+            idx[tri]= x[:,1]*(y[:,2]-y[:,0])+x[:,0]*(y[:,1]-y[:,2])+x[:,2]*(y[:,0]-y[:,1])
 
             if np.any(idx<0):
                 bad=idx<0
@@ -153,8 +154,8 @@ class Mesh(object) :
         if np.any(quad):
             x= self.x[self.faces[tri,:4]]
             y= self.y[self.faces[tri,:4]]
-            tr1= x[:,1]*[y[:,2]-y[:,0]]+x[:,0]*[y[:,1]-y[:,2]]+x[:,2]*[y[:,0]-y[:,1]]
-            tr2= x[:,3]*[y[:,0]-y[:,2]]+x[:,2]*[y[:,3]-y[:,0]]+x[:,1]*[y[:,2]-y[:,3]]
+            tr1= x[:,1]*(y[:,2]-y[:,0])+x[:,0]*(y[:,1]-y[:,2])+x[:,2]*(y[:,0]-y[:,1])
+            tr2= x[:,3]*(y[:,0]-y[:,2])+x[:,2]*(y[:,3]-y[:,0])+x[:,1]*(y[:,2]-y[:,3])
             idx[quad]=tri1+tri2;
 
             if np.any(idx<0):
