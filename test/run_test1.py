@@ -1,13 +1,13 @@
 import sys,os
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','qgmesh')) 
-#from qgis.core import (
-#     QgsApplication, 
-#     QgsProcessingFeedback, 
-#     QgsVectorLayer,
-#     QgsProject,
-#     QgsCoordinateTransform,
-#     QgsMeshLayer,
-#)
+from qgis.core import (
+    QgsApplication, 
+    QgsProcessingFeedback, 
+    QgsVectorLayer,
+    QgsProject,
+    QgsCoordinateTransform,
+    QgsMeshLayer,
+)
 
 from exportGeometry import GeoFile
 from utils import get_crs
@@ -17,43 +17,45 @@ import meshio
 import pygmsh
 from tools import get_format_from_gmsh,Mesh2Shapefile
 
-# See https://gis.stackexchange.com/a/155852/4972 for details about the prefix 
-#QgsApplication.setPrefixPath('/usr', True)
-#qgs = QgsApplication([], False)
-#qgs.initQgis()
+from qgis.core import QgsCoordinateReferenceSystem
 
-# Append the path where processing plugin can be found
-#sys.path.append('/home/remy/.local/share/QGIS/QGIS3/profiles/default/processing/')
+#See https://gis.stackexchange.com/a/155852/4972 for details about the prefix 
+QgsApplication.setPrefixPath('/usr', True)
+qgs = QgsApplication([], False)
+qgs.initQgis()
 
-geo = pygmsh.built_in.Geometry()
+#Append the path where processing plugin can be found
+sys.path.append('/home/remy/.local/share/QGIS/QGIS3/profiles/default/processing/')
 
-with open('/home/remy/Documents/test/file.geo', 'r') as fin:
-    geo._GMSH_CODE.append(fin.read())
+# geo = pygmsh.built_in.Geometry()
 
-msh=pygmsh.generate_mesh(geo,extra_gmsh_arguments=['-2','-algo','front2d','-epslc1d','1e-3'])
+# with open('/home/remy/Documents/test/file.geo', 'r') as fin:
+#     geo._GMSH_CODE.append(fin.read())
 
-mesh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cell_data=msh.cell_data,field_data=msh.field_data)
+# msh=pygmsh.generate_mesh(geo,extra_gmsh_arguments=['-2','-algo','front2d','-epslc1d','1e-3'])
 
-triangles,edges,physicalID=get_format_from_gmsh(mesh)
+# mesh=meshio.Mesh(points=msh.points,cells=msh.cells,point_data=msh.point_data,cell_data=msh.cell_data,field_data=msh.field_data)
 
-me=Mesh(mesh.points[:,0],mesh.points[:,1],mesh.points[:,2],triangles,\
-    edges=edges,\
-    physical=mesh.field_data,\
-    physicalID=physicalID)
+# triangles,edges,physicalID=get_format_from_gmsh(mesh)
 
-
-Mesh2Shapefile(me)
-
+# me=Mesh(mesh.points[:,0],mesh.points[:,1],mesh.points[:,2],triangles,\
+#     edges=edges,\
+#     physical=mesh.field_data,\
+#     physicalID=physicalID)
 
 
-sys.exit(-1)
+# Mesh2Shapefile(me)
+
+
+
+# sys.exit(-1)
 #import processing
 #from processing.core.Processing import Processing
 #Processing.initialize()
 
 
 
-filename=os.path.join('/home/remy/Software/QGmesh/test/','easy_test_mix_bnd.qgz')
+filename=os.path.join('/oldroot/home/remy/Buisness/0448_Hokianga/grids/','hokianga.qgz')
 print(filename)
 proj = QgsProject.instance()
 proj.read(filename)
@@ -66,15 +68,17 @@ tetraLayers = set(proj.readEntry("qgmsh", "tetralayers", "")[0].split("%%"))
 quadLayers = set(proj.readEntry("qgmsh", "quadlayers", "")[0].split("%%"))
 meshSizeLayerId = proj.readEntry("qgmsh", "mesh_size_layer", "None")[0]
 projid = proj.readEntry("qgmsh", "projection", "")[0]
-crs=get_crs(projid)
+
+crs=QgsCoordinateReferenceSystem("EPSG:2193")
 
 
     
 geo=GeoFile()
 for child in proj.layerTreeRoot().findGroups():      
 
-    if child.name() in ['Boundaries','Islands','Channels']:
+    if child.name() in ['Boundaries','QuadPatch','Channels']:
         grid_type='tetra'#child.customProperty('grid type')
+        print(child.name())
         for sub_subChild in child.children():
             layer = proj.mapLayer(sub_subChild.layerId())
             xform = QgsCoordinateTransform(layer.crs(), crs,proj)
