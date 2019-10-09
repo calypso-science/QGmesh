@@ -6,7 +6,8 @@ import gdal
 from collections import OrderedDict
 import numpy as np
 import copy
-
+from PyQt5.QtWidgets import QProgressDialog
+from scipy.interpolate import griddata
 
 def bilinear(px, py,gt,band_array, no_data=np.nan):
 
@@ -125,10 +126,42 @@ class Mesh(object) :
             hg_node=self._find_hanging_nodes()
             if len(hg_node)>0:
                 self._remove_nodes(hg_node)
+
+            self._correct_orientation()
             
             self._calculate_face_nodes()
             self.calc_parameters()
 
+
+    def _correct_orientation(self):
+        tri=self.faces[:,3]<0
+        quad=self.faces[:,3]>=0
+
+        idx=np.ones(len(self.faces))
+
+        if np.any(tri):
+            x= self.x[self.faces[tri,:3]]
+            y= self.y[self.faces[tri,:3]]
+            idx[tri]= x[:,1]*[y[:,2]-y[:,0]]+x[:,0]*[y[:,1]-y[:,2]]+x[:,2]*[y[:,0]-y[:,1]]
+
+            if np.any(idx<0):
+                bad=idx<0
+                j=self.faces[bad,1] 
+                self.faces[bad,1] = self.faces[bad,2]
+                self.faces[bad,2] = j;
+
+        if np.any(quad):
+            x= self.x[self.faces[tri,:4]]
+            y= self.y[self.faces[tri,:4]]
+            tr1= x[:,1]*[y[:,2]-y[:,0]]+x[:,0]*[y[:,1]-y[:,2]]+x[:,2]*[y[:,0]-y[:,1]]
+            tr2= x[:,3]*[y[:,0]-y[:,2]]+x[:,2]*[y[:,3]-y[:,0]]+x[:,1]*[y[:,2]-y[:,3]]
+            idx[quad]=tri1+tri2;
+
+            if np.any(idx<0):
+                bad=idx<0
+                j=self.faces[bad,1] 
+                self.faces[bad,1] = self.faces[bad,3]
+                self.faces[bad,3] = j;
 
 
     def calc_parameters(self):
@@ -421,6 +454,7 @@ class Mesh(object) :
             fields.append(QgsField("type", QVariant.Int,'integer', 1, 0))
             fields.append(QgsField("area", QVariant.Int,'integer', 9, 0))
             fields.append(QgsField("volume", QVariant.Int,'integer', 9, 0))
+            fields.append(QgsField("depth", QVariant.Double,'double', 9, 2))
             fields.append(QgsField("resolution", QVariant.Int,'integer', 9, 0))
             fields.append(QgsField("ETA", QVariant.Double,'double', 3, 2))
             fields.append(QgsField("NSR", QVariant.Double,'double', 3, 2))
@@ -487,7 +521,7 @@ class Mesh(object) :
                 newFeature.setAttributes([int(ie+1),\
                     int(self.faces[ie,0]+1),int(self.faces[ie,1]+1),int(self.faces[ie,2]+1),int(self.faces[ie,3]+1),\
                     int(nface),\
-                    float('%9.f' % self.areas[ie]),float('%9.f' % self.volumes[ie]),float('%9.f' % self.res[ie]),\
+                    float('%9.f' % self.areas[ie]),float('%9.f' % self.volumes[ie]),float('%9.2f' % self.zctr[ie]),float('%9.f' % self.res[ie]),\
                     float('%3.2f' % self.eta[ie]),float('%3.2f' % self.nsr[ie]),float('%3.2f' % self.min_angle[ie])])
                 fileWriter.addFeature(newFeature)
 
@@ -498,11 +532,32 @@ class Mesh(object) :
         raster=gdal.Open(raster)
         bathy=raster.GetRasterBand(1).ReadAsArray()
         gt = raster.GetGeoTransform()
+        nodata=raster.GetRasterBand(1).GetNoDataValue()
+        bathy[bathy==nodata]=np.nan
+        progress = QProgressDialog("Interpolating mesh ...", "Abort", 0, len(self.x))
+        progress.setMinimumDuration(0)
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setValue(0)
 
         for pt in range(0,len(self.x)):
+            progress.setValue(pt)
+            if progress.wasCanceled():
+                return False
+
             self.z[pt]=bilinear(self.x[pt],self.y[pt],gt,bathy, no_data=np.nan)
-
-
+        
+        bad=np.isnan(self.z)
+        if bad.any():
+            notnans = ~np.isnan(bathy)
+            ny, nx = bathy.shape
+            fx=np.arange(0,nx)*gt[1]+gt[0]
+            fy=np.arange(0,ny)*gt[5]+gt[3]
+            xx,yy=np.meshgrid(fx,fy)
+            zx=xx[notnans]
+            zy=yy[notnans]
+            bathy=bathy[notnans]
+            self.z[bad.nonzero()]=griddata((zx,zy),bathy,np.vstack((self.x[bad.nonzero()],self.y[bad.nonzero()])).T, method='nearest')
+                            
     
 
 

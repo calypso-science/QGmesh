@@ -856,8 +856,12 @@ class qgmesh:
                 for sub_subChild in child.children():
                     if sub_subChild.name()=='Nodes':
                         layer = proj.mapLayer(sub_subChild.layerId())     
-                        update_field(layer,'Depth',self.mesh.z)
+                        update_field(layer,'Depth',self.mesh.z,fmt='%9.3f')
                         assign_bathy(layer)
+                    #if sub_subChild.name()=='Faces':
+                    #    update_field(layer,'depth',self.mesh.zctr,fmt='%9.2f')
+                    #    update_field(layer,'volume',self.mesh.areas*self.zctr,fmt='%9.f')
+
 
 
 

@@ -133,7 +133,7 @@ def get_layer(layer_name):
         if layer.name()==layer_name: #and layer.type()==QgsMapLayer.RasterLayer:
             return layer
 
-def update_field(layer,fieldName,value):
+def update_field(layer,fieldName,value,fmt='%9.3f'):
     layer.startEditing()
     features=layer.getFeatures()
     layer_provider=layer.dataProvider()
@@ -141,7 +141,7 @@ def update_field(layer,fieldName,value):
 
     for ie,f in enumerate(features):
         id=f.id()
-        attr_value={idx:float('%9.3f' % value[ie])}
+        attr_value={idx:float(fmt % value[ie])}
         layer_provider.changeAttributeValues({id:attr_value})
 
     layer.commitChanges()
