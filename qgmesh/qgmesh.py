@@ -298,17 +298,6 @@ class qgmesh:
 
         self.menu_mesh.addAction(mesh_it)
 
-        add_bathy=self.add_action(
-            icon_path,
-            text=self.tr(u'Add bathy'),
-            callback=self.add_bathy,
-            parent=self.iface.mainWindow(),
-            add_to_toolbar=False,
-            add_to_menu=False,
-            status_tip="Add bathy to the mesh",
-            whats_this="This will add bathy to the mesh.")
-
-        self.menu_mesh.addAction(add_bathy)
 
         export_msh=self.add_action(
             icon_path,
@@ -372,7 +361,37 @@ class qgmesh:
 
         self.menu.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.menu_mesh)
 
+        ## Bathymery
+        self.menu_bathy= QMenu(self.iface.mainWindow())
+        self.menu_bathy.setObjectName("Bathymetry")
+        self.menu_bathy.setTitle("Bathymetry")
 
+        add_bathy=self.add_action(
+            icon_path,
+            text=self.tr(u'Add bathy'),
+            callback=self.add_bathy,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip="Add bathy to the mesh",
+            whats_this="This will add bathy to the mesh.")
+
+        self.menu_bathy.addAction(add_bathy)
+
+        bnd_correction=self.add_action(
+            icon_path,
+            text=self.tr(u'Bnd correction'),
+            callback=self.bnd_correction,
+            parent=self.iface.mainWindow(),
+            add_to_toolbar=False,
+            add_to_menu=False,
+            status_tip="Correc the bathymetry near the open boundaries",
+            whats_this="This will make th bathymetry deeper near the open boundaries")
+
+        self.menu_bathy.addAction(bnd_correction)
+
+
+        self.menu.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.menu_bathy)
 
         ## Sizing
         self.menu_size= QMenu(self.iface.mainWindow())
@@ -822,6 +841,21 @@ class qgmesh:
         value=int(msh_name.replace('Mesh_',''))
         self.mesh=self.rebuild_mesh(value=value)
 
+
+    def bnd_correction(self):
+        proj = QgsProject.instance()
+
+        Mesh=[]
+        for child in proj.layerTreeRoot().children():
+            if isinstance(child, QgsLayerTreeGroup) and child.name()[:4]=='Mesh':
+                Mesh.append(child.name())
+
+        msh=mesh_selector(Mesh)
+        msh_name=msh.exec_()
+        value=int(msh_name.replace('Mesh_',''))
+        self.mesh=self.rebuild_mesh(value=value)
+
+
     def add_bathy(self):
         proj = QgsProject.instance()
         
@@ -858,9 +892,9 @@ class qgmesh:
                         layer = proj.mapLayer(sub_subChild.layerId())     
                         update_field(layer,'Depth',self.mesh.z,fmt='%9.3f')
                         assign_bathy(layer)
-                    #if sub_subChild.name()=='Faces':
-                    #    update_field(layer,'depth',self.mesh.zctr,fmt='%9.2f')
-                    #    update_field(layer,'volume',self.mesh.areas*self.zctr,fmt='%9.f')
+                    if sub_subChild.name()=='Faces':
+                        update_field(layer,'depth',self.mesh.zctr,fmt='%9.2f')
+                        update_field(layer,'volume',self.mesh.areas*self.zctr,fmt='%9.f')
 
 
 

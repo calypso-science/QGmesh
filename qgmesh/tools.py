@@ -350,12 +350,17 @@ def writeRasterLayer(layer, filename) :
     f.write(struct.pack("3d", ext.width() / layer.width(), ext.height() / layer.height(), 1))
     f.write(struct.pack("3i", layer.width(), layer.height(), 1))
     block = layer.dataProvider().block(1, layer.extent(), layer.width(), layer.height())
+    stats = layer.dataProvider().bandStatistics(1, QgsRasterBandStats.All, layer.extent(), 0)
     for j in range(layer.width()) : 
         progress.setValue(j)
         if progress.wasCanceled():
             return False
+
+
         v = list([block.value(i, j) for i in range(layer.height() -1, -1, -1)])
-        f.write(struct.pack("{}d".format(len(v)), *v))
+        vv = [stats.minimumValue if np.isnan(x) else x for x in v]
+  
+        f.write(struct.pack("{}d".format(len(vv)), *vv))
     f.close()
     return True
 
