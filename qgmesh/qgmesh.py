@@ -385,7 +385,7 @@ class qgmesh:
             parent=self.iface.mainWindow(),
             add_to_toolbar=False,
             add_to_menu=False,
-            status_tip="Correc the bathymetry near the open boundaries",
+            status_tip="Correct the bathymetry near the open boundaries",
             whats_this="This will make th bathymetry deeper near the open boundaries")
 
         self.menu_bathy.addAction(bnd_correction)
