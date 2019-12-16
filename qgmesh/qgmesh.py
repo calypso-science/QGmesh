@@ -894,7 +894,7 @@ class qgmesh:
                         assign_bathy(layer)
                     if sub_subChild.name()=='Faces':
                         update_field(layer,'depth',self.mesh.zctr,fmt='%9.2f')
-                        update_field(layer,'volume',self.mesh.areas*self.zctr,fmt='%9.f')
+                        update_field(layer,'volume',self.mesh.areas*self.mesh.zctr,fmt='%9.f')
 
 
 

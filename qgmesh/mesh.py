@@ -463,6 +463,7 @@ class Mesh(object) :
 
 
 
+
         fileWriter = QgsVectorFileWriter(filename,
                    "system", fields,shape , crs,
                    "ESRI Shapefile")
