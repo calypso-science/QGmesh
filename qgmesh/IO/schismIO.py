@@ -134,6 +134,7 @@ def export_file(mesh,fname):
 
         if n==0:
             bnd=[]
+            bnd.append(mesh.edges[n])
         elif mesh.physicalID[n]<=0 and len(bnd)>0:
             Bnd[phyID].append(bnd)
             bnd=[]
