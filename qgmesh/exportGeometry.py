@@ -5,7 +5,7 @@ from PyQt5.QtCore import Qt,pyqtRemoveInputHook,QFileInfo
 import pygmsh
 import os
 from .tools import writeRasterLayer
-from pygmsh.built_in.geometry import Spline
+from pygmsh.built_in.geometry import Spline,Line
 import re
 import numpy as np
 

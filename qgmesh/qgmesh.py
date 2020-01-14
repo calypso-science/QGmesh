@@ -511,19 +511,24 @@ class qgmesh:
         proj.addMapLayer(outLayer)
 
     def add_sizing_box(self):
-        inLayerGeometryType = ['Point','Line','Polygon'][QgsWkbTypes.PolygonGeometry]
+        path_absolute = QgsProject.instance().readPath('./')
+        filename=os.path.join(path_absolute,'sizing_box_'+str(uuid.uuid4())+'.shp')
+        inLayerGeometryType =QgsWkbTypes.Polygon #['Point','Line','Polygon'][QgsWkbTypes.PolygonGeometry]
         proj = QgsProject.instance()
         crs=proj.crs()
-        outLayer = QgsVectorLayer( inLayerGeometryType+ '?crs='+crs.authid(), \
-            'Box', \
-            'memory')
 
-        outLayer.startEditing()
-        outLayer.dataProvider().addAttributes([\
-            QgsField("vin", QVariant.Double,"double",10,4),\
-            QgsField("vout", QVariant.Double,"double",10,4)])
 
-        outLayer.commitChanges()
+        fields=  QgsFields()      
+        fields.append(QgsField("vin", QVariant.Double,'double', 10,4))
+        fields.append(QgsField("vout", QVariant.Double,'double',10,4))
+
+        fileWriter = QgsVectorFileWriter(filename,
+           "system", fields,inLayerGeometryType , crs,
+           "ESRI Shapefile")
+
+        del fileWriter
+
+        outLayer = QgsVectorLayer(filename, "Box", "ogr")
 
         proj.addMapLayer(outLayer)
 
