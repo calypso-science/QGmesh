@@ -274,7 +274,7 @@ def assign_colorbar(layer):
     myRasterShader.setRasterShaderFunction(myColorRamp)
 
     myPseudoRenderer = QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 
-                                                        layer.type(),
+                                                        1,
                                                         myRasterShader)                                                                    
 
     layer.setRenderer(myPseudoRenderer)
