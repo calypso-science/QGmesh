@@ -927,7 +927,7 @@ class qgmesh:
         
         unique_name=str(uuid.uuid4())
         mesh_out=os.path.join(path_absolute,unique_name+'.msh')
-        meshio.write(mesh_out,msh)
+        #meshio.write(mesh_out,msh)
 
         proj = QgsProject.instance()
         proj.writeEntry("QGmsh", "mesh_file", mesh_out)
