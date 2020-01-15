@@ -10,6 +10,7 @@ import struct
 from datetime import datetime
 from qgis.utils import iface
 from .tools import *
+import uuid
 
 class raster_calculator(QtWidgets.QDialog):
 
@@ -79,8 +80,10 @@ class raster_calculator(QtWidgets.QDialog):
         TitleLayout("Raster extent", self.extent, layout)
 
         self.res=QtWidgets.QLineEdit()
-        self.res.setText('100,100')
-        TitleLayout("Raster resolution", self.res, layout)
+        xres=(xmax-xmin)/100
+        yres=(ymax-ymin)/100
+        self.res.setText(str(xres)+','+str(yres))
+        TitleLayout("Raster resolution X,Y (m)",self.res, layout)
 
         self.runLayout = CancelRunLayout(self,"calculate", self.dist_calc, layout)
         self.runLayout.runButton.setEnabled(True)
@@ -144,7 +147,7 @@ class raster_calculator(QtWidgets.QDialog):
         shapein=get_layer(raster).dataProvider().dataSourceUri()
 
         root,f=os.path.split(shapein)
-        shapeout=os.path.join(root,'wavelength.tif')
+        shapeout=os.path.join(root,'wavelength'+str(uuid.uuid4())+'.tif')
 
         os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="%f*(A<=%f) + A*(A>%f)" --NoDataValue=-99'% (shapein,shapeout,d0,d0,d0))
         os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="%f*sqrt(tanh(4*pi**2.*A/%f**2/%f))" --NoDataValue=-99' % (shapeout,shapeout,x,t,g))
@@ -159,13 +162,15 @@ class raster_calculator(QtWidgets.QDialog):
         """ Set the gradation parameters. """
         shapein=self.rasterSelector.currentItem().text()
         shapesSHPFilename=get_layer(shapein).dataProvider().dataSourceUri().split('|')[0]
+        root,f=os.path.split(shapesSHPFilename)
         extent=[float(x) for x in self.extent.text().split(',')]
-        res=[float(x) for x in self.res.text().split(',')]
+        resM=[float(x) for x in self.res.text().split(',')]
+        res=[(extent[1]-extent[0])/resM[0],(extent[3]-extent[2])/resM[1]]
         time = datetime.now()
 
 
         rasterisedShapesFilename=os.path.join( self.tempdir,'raster_dist.nc')
-        outputRasterFilename=os.path.join( self.tempdir,'distance.tif')
+        outputRasterFilename=os.path.join( root,'distance'+str(uuid.uuid4())+'.tif')
 
         if os.path.isfile(rasterisedShapesFilename):
             os.system('rm -f %s' % rasterisedShapesFilename)
@@ -202,7 +207,7 @@ class raster_calculator(QtWidgets.QDialog):
         max_raster = float(self.origin_max.text())
         
         root,f=os.path.split(shapein)
-        shapeout=os.path.join(root,'scaled.tif')
+        shapeout=os.path.join(root,'scaled'+str(uuid.uuid4())+'.tif')
 
         os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="((((%f-%f)*(A-%f))/(%f-%f))+%f)" --NoDataValue=-99' % (shapein,os.path.join( self.tempdir,'tmp1.tif'),Vmax,Vmin,min_raster,max_raster,min_raster,Vmin))
         os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="maximum(A,%f)" --NoDataValue=-99' % (os.path.join( self.tempdir,'tmp1.tif'),os.path.join( self.tempdir,'tmp2.tif'),Vmin))
