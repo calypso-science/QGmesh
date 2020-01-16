@@ -979,6 +979,9 @@ class qgmesh:
             self.geo.geo.add_background_field(self.geo.Field,aggregation_type='Min')
             #import pdb;pdb.set_trace()
 
+        for i,li in enumerate(self.geo.geo._GMSH_CODE):
+            if 'Spline' in li:
+                self.geo.geo._GMSH_CODE[i]=li.replace('Spline','Line')
 
     def export_geofile(self):
         self.update_geofile()
