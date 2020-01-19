@@ -14,6 +14,7 @@ from datetime import datetime
 from qgis.utils import iface
 from collections import OrderedDict
 
+
 plugin_folder=os.path.join(os.path.dirname(__file__),'IO')
 sys.path.append(plugin_folder)
 
@@ -285,6 +286,9 @@ def add_raster(fname,name):
     proj = QgsProject.instance()
     vlayer = QgsRasterLayer(fname, name)
     assign_colorbar(vlayer)
+    m=QgsLayerMetadata()
+    m.setAbstract('SetOutsideValue=0\nOutsideValue=1000')
+    vlayer.setMetadata(m)
     proj.addMapLayer(vlayer)
 
 def write_raster(shapesSHPFilename,rasterisedShapesFilename,xy,res):
