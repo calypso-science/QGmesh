@@ -426,7 +426,7 @@ class GeoFile():
         return name
 
     def addStructured(self,fname,
-         vout=None,
+         vout=None,SetOutsideValue=0,OutsideValue=1000,
          **kwargs):
          
         # Don't use [] as default argument, cf.
@@ -442,8 +442,15 @@ class GeoFile():
 
         self.geo._GMSH_CODE.append("Field[{}].FileName= {!r};".format(name, fname))
 
+
+        if SetOutsideValue>0:
+            self.geo._GMSH_CODE.append("Field[{}].SetOutsideValue= {!r};".format(name, SetOutsideValue))
+            self.geo._GMSH_CODE.append("Field[{}].OutsideValue= {!r};".format(name, OutsideValue))
+
         if vout:
             self.geo._GMSH_CODE.append("Field[{}].VOut= {!r};".format(name, vout))
+
+
 
 
         self.geo._GMSH_CODE.append("Mesh.CharacteristicLengthFromPoints = 0;")
@@ -466,7 +473,21 @@ class GeoFile():
 
             writeRasterLayer(layer,fname)
             options={}
+            abst=layer.metadata().abstract()
+            if len(abst )>0:
+                opts=layer.metadata().abstract().split('\n')
+                for opt in opts:
+                    if '=' in opt:
+                        tmp=opt.split('=')
+                        options[tmp[0]]=int(tmp[1])
+                        
+
+
+
+
+
             self.Field.append(self.addStructured( fname,**options))
+
 
         else:
             fields = layer.fields()
