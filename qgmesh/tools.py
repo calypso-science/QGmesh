@@ -139,19 +139,19 @@ def update_field(layer,fieldName,value,fmt='%9.3f'):
     features=layer.getFeatures()
     layer_provider=layer.dataProvider()
     idx = layer.fields().indexFromName(fieldName)
-   progress = QProgressDialog("Updating %s ..." % fieldName, "Abort", 0, len(value))
-   progress.setMinimumDuration(0)
-   progress.setWindowModality(Qt.WindowModal)
-   progress.setValue(0)
+    progress = QProgressDialog("Updating %s ..." % fieldName, "Abort", 0, len(value))
+    progress.setMinimumDuration(0)
+    progress.setWindowModality(Qt.WindowModal)
+    progress.setValue(0)
 
     for ie,f in enumerate(features):
        progress.setValue(ie)
        if progress.wasCanceled():
           return False
 
-        id=f.id()
-        attr_value={idx:float(fmt % value[ie])}
-        layer_provider.changeAttributeValues({id:attr_value})
+       id=f.id()
+       attr_value={idx:float(fmt % value[ie])}
+       layer_provider.changeAttributeValues({id:attr_value})
 
     layer.commitChanges()
 

@@ -716,13 +716,23 @@ class qgmesh:
             if layer.type()==QgsMapLayer.VectorLayer:
                 shapefile.append(layer.name())
 
+        if not hasattr(self,'mesh'):
+            Mesh=[]
+            for child in proj.layerTreeRoot().children():
+                if isinstance(child, QgsLayerTreeGroup) and child.name()[:4]=='Mesh':
+                    Mesh.append(child.name())
+
+            msh=mesh_selector(Mesh)
+            msh_name=msh.exec_()
+            value=int(msh_name.replace('Mesh_',''))
+            self.mesh=self.rebuild_mesh(value=value)
 
         run_cleaner = RunSCHISMDialog(self.mesh,shapefile,tmp= self.tempdir)
         root=os.path.dirname(__file__)
-        nicegrid=os.path.join(root,'nicegrid2')
+        nicegrid=os.path.join(root,'nicegrid4')
         if not os.path.isfile(nicegrid):
-            os.system('gfortran -o %s %s' %(nicegrid,os.path.join(root,'nicegrid2.f90')))
-            self.iface.messageBar().pushMessage("Info", "NCIEGRID2 not found and compiled. ", level=Qgis.Info)
+            os.system('gfortran -o %s %s' %(nicegrid,os.path.join(root,'nicegrid4.f90')))
+            self.iface.messageBar().pushMessage("Info", "NCIEGRID4 not found and compiled. ", level=Qgis.Info)
             
 
         run_cleaner.exec_()

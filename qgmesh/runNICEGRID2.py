@@ -38,8 +38,8 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
 
         self.algoSelector = QtWidgets.QComboBox(self)
         self.algoSelector.addItem("do not change boundary", "0")
-        self.algoSelector.addItem("correct boundary as well", "1")
-        self.algoSelector.addItem("correct and adjust boundary", "2")
+        self.algoSelector.addItem("eliminate nodes in boundary", "1")
+        self.algoSelector.addItem(" eliminate & add nodes in boundary", "2")
         TitleLayout("Boundary options", self.algoSelector, layout)
 
         
@@ -113,14 +113,14 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
         if self.killed :
             return
         if state == QProcess.FailedToStart :
-            self.log("Cannot start nicegrid2: ", "red")
+            self.log("Cannot start nicegrid4: ", "red")
         elif state == QProcess.Crashed :
-            self.log("nicegrid2 crashed.", "red")
+            self.log("nicegrid4 crashed.", "red")
         else :
-            self.log("Unkown nicegrid2 error.", "red")
+            self.log("Unkown nicegrid4 error.", "red")
 
     def clean(self):
-        nicegrid2=os.path.join(os.path.dirname(__file__),'nicegrid2')
+        nicegrid4=os.path.join(os.path.dirname(__file__),'nicegrid4')
         fname=os.path.join( self.tempdir,'gridin.gr3')
         fout=os.path.join( self.tempdir,'gridout.gr3')
         algo=self.algoSelector.currentIndex()
@@ -148,7 +148,7 @@ class RunSCHISMDialog(QtWidgets.QDialog) :
         export_function=load_IO()
         export_function['schismIO']['export'](self.mesh,fname)
 
-        self.p.start(nicegrid2,[fname,fout,str(algo)])
+        self.p.start(nicegrid4,[fname,fout,str(algo),str(1)])
 
     def load_file(self):
         qfd = QFileDialog()

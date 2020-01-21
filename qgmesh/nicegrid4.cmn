@@ -1,0 +1,31 @@
+!	module nicegrid4.cmn
+
+!-----------------------------------------------------------------------
+!
+!	AUTHOR:		Andre' Fortunato - 2018-06-18
+!
+!	PURPOSE:	parameters used in program nicegrid3
+!			MXNOD: max number of nodes
+!			MXEL:  max number of elements
+!			MNBOU: max number of boundaries
+!			MNEI:  max number of connected nodes per node
+!			NEBND: max number of nodes per boundary
+!
+!			dtheta1: small angle to define straigth boundaries
+!				 in CorBND
+!			dtheta2: small angle to define straigth boundaries
+!				 in springs_bnd
+!-----------------------------------------------------------------------
+
+	implicit none
+	integer*4	MXNOD,MXEL,MNBOU,MNEI,NEBND,NBND
+	real*8		dtheta1,dtheta2
+
+	parameter	(dtheta1=2.)
+	parameter	(dtheta2=1.)
+
+	parameter	(MXNOD	= 550000)
+	parameter	(MXEL	= 2*MXNOD)
+	parameter	(MNBOU  = 150)
+	parameter	(MNEI	= 100)
+        parameter       (NEBND  = 10000)
