@@ -893,8 +893,8 @@ class qgmesh:
         for child in proj.layerTreeRoot().findGroups():      
             if child.name() in ['Mesh_'+str(value)]:
                 for sub_subChild in child.children():
+                    layer = proj.mapLayer(sub_subChild.layerId())
                     if sub_subChild.name()=='Nodes':
-                        layer = proj.mapLayer(sub_subChild.layerId())     
                         update_field(layer,'Depth',self.mesh.z,fmt='%9.3f')
                         assign_bathy(layer)
                     if sub_subChild.name()=='Faces':
