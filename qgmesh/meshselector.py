@@ -1,15 +1,15 @@
-from PyQt5.QtCore import Qt
+#from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication,QVBoxLayout,QHBoxLayout,QPushButton,QDialog,QLabel,QLineEdit,QFileDialog,QProgressDialog,QInputDialog,QWidget
-from PyQt5.QtGui import QIcon,QColor
-from qgis.gui import QgsProjectionSelectionTreeWidget
-from qgis.core import *
+#from PyQt5.QtGui import QIcon,QColor
+#from qgis.gui import QgsProjectionSelectionTreeWidget
+#from qgis.core import *
 import sys,os
 import numpy as np
 from PyQt5 import QtWidgets
 import struct
 from datetime import datetime
-from qgis.utils import iface
-from .tools import *
+#from qgis.utils import iface
+from .tools import TitleLayout,CancelRunLayout
 
 class mesh_selector(QtWidgets.QDialog):
 

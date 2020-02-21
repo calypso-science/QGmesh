@@ -652,8 +652,8 @@ class qgmesh:
                 Mesh.append(child.name())
 
         msh=mesh_selector(Mesh)
-        msh_name=msh.exec_()
-        value=int(msh_name.replace('Mesh_',''))
+        #msh_name=msh.exec_()
+        value=0 #int(msh_name.replace('Mesh_',''))
         self.mesh=self.rebuild_mesh(value=value)
 
         for model in export_function:
@@ -880,8 +880,8 @@ class qgmesh:
                 Mesh.append(child.name())
 
         msh=mesh_selector(Mesh)
-        msh_name=msh.exec_()
-        value=int(msh_name.replace('Mesh_',''))
+        #msh_name=msh.exec_()
+        value=0#int(msh_name.replace('Mesh_',''))
         self.mesh=self.rebuild_mesh(value=value)
 
         raster=[]
