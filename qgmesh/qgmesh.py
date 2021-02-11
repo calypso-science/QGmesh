@@ -192,6 +192,7 @@ class qgmesh:
         wavelength_icon=os.path.join(root,'icons','wavelength.png')
         scale_icon=os.path.join(root,'icons','Downsize.png')
         tape_icon=os.path.join(root,'icons','tape.png')
+        mask_icon=os.path.join(root,'icons','mask.ico')
 
         icon_path = ''
 
@@ -463,6 +464,18 @@ class qgmesh:
 
         self.raster_calc.addAction(to_dist)
 
+        to_mask=self.add_action(
+            mask_icon,
+            text=self.tr(u'add polygon'),
+            callback=self.to_mask,
+            parent=self.menu_size,
+            add_to_toolbar=True,
+            add_to_menu=False,
+            status_tip=".",
+            whats_this=".")
+
+        self.raster_calc.addAction(to_mask)
+
 
         self.menu_size.insertMenu(self.iface.firstRightStandardMenu().menuAction(),self.raster_calc)
 
@@ -571,7 +584,18 @@ class qgmesh:
         ex.show()
         ex.exec_() 
 
-   
+    def to_mask(self):
+        proj = QgsProject.instance()
+        raster=[]
+        for child in proj.layerTreeRoot().findLayers():   
+            layer = proj.mapLayer(child.layerId())     
+            if layer.type()!=QgsMapLayer.RasterLayer:
+                raster.append(layer.name())
+
+        ex = raster_calculator(raster,'mask',tmp= self.tempdir)
+        ex.show()
+        ex.exec_() 
+
 
     def get_CFL(self):
         ex = CFL_calculator()

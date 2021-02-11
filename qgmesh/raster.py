@@ -47,6 +47,12 @@ class raster_calculator(QtWidgets.QDialog):
             self.setWindowTitle(self.title)
             self.initChoose(layout)
 
+
+        if funct_name=='mask':
+            self.title = 'Apply a mask'
+            self.setWindowTitle(self.title)
+            self.initMask(layout)            
+
         self.setMaximumHeight(10)
         self.resize(max(400, self.width()), self.height())
         self.show()
@@ -65,6 +71,42 @@ class raster_calculator(QtWidgets.QDialog):
         self.runLayout = CancelRunLayout(self,"Choose", self.choose_raster, layout)
         self.runLayout.runButton.setEnabled(True)
         self.setLayout(layout)
+
+
+    def initMask(self,layout):
+       
+        layer = iface.activeLayer() # load the layer as you want
+        ext=iface.mapCanvas().extent()
+        #ext = layer.extent()
+        xmin = ext.xMinimum()
+        xmax = ext.xMaximum()
+        ymin = ext.yMinimum()
+        ymax = ext.yMaximum()
+        coords = "%f,%f,%f,%f" %(xmin, xmax, ymin, ymax)
+        self.extent=QtWidgets.QLineEdit()
+        self.extent.setText(coords)
+        TitleLayout("Raster extent", self.extent, layout)
+
+        self.res=QtWidgets.QLineEdit()
+        xres=(xmax-xmin)/100
+        yres=(ymax-ymin)/100
+        self.res.setText(str(xres)+','+str(yres))
+        TitleLayout("Raster resolution X,Y (m)",self.res, layout)
+
+
+        self.valin=QtWidgets.QLineEdit()
+        self.valin.setText(str(50))
+        TitleLayout("Resolution inside in m",self.valin, layout)
+
+        self.valout=QtWidgets.QLineEdit()
+        self.valout.setText(str(10000))
+        TitleLayout("Resolution outside in m",self.valout, layout)
+
+
+        self.runLayout = CancelRunLayout(self,"calculate", self.apply_mask, layout)
+        self.runLayout.runButton.setEnabled(True)
+        self.setLayout(layout)
+
     def initDist(self,layout):
        
         layer = iface.activeLayer() # load the layer as you want
@@ -190,6 +232,43 @@ class raster_calculator(QtWidgets.QDialog):
 
         self.close()
         return
+
+
+    def apply_mask(self):
+        """ Set the gradation parameters. """
+        shapein=self.rasterSelector.currentItem().text()
+        shapesSHPFilename=get_layer(shapein).dataProvider().dataSourceUri().split('|')[0]
+        root,f=os.path.split(shapesSHPFilename)
+        extent=[float(x) for x in self.extent.text().split(',')]
+        resM=[float(x) for x in self.res.text().split(',')]
+        res=[(extent[1]-extent[0])/resM[0],(extent[3]-extent[2])/resM[1]]
+        time = datetime.now()
+        valin=float(self.valin.text())
+        valout=float(self.valout.text())
+
+        rasterisedShapesFilename=os.path.join( self.tempdir,'raster_mask.nc')
+        outputRasterFilename=os.path.join( root,'mask'+str(uuid.uuid4())+'.tif')
+
+        if os.path.isfile(rasterisedShapesFilename):
+            os.system('rm -f %s' % rasterisedShapesFilename)
+
+        if os.path.isfile(outputRasterFilename):
+            os.system('rm -f %s' % outputRasterFilename)
+
+        write_raster(shapesSHPFilename,rasterisedShapesFilename,extent,res)
+
+        #gdal_proximity_cmd = 'gdal_proximity.py -q %s %s -of GTiff -distunits GEO ' % (rasterisedShapesFilename,outputRasterFilename)
+        gdal_proximity_cmd='gdal_rasterize -b 1 -burn %i -l mask %s %s' % (valin,rasterisedShapesFilename,outputRasterFilename)
+
+        os.system(gdal_proximity_cmd)
+        add_raster(outputRasterFilename,'mask')
+
+        if os.path.isfile(rasterisedShapesFilename):
+            os.system('rm -f %s' % rasterisedShapesFilename)
+
+        self.close()
+        return
+
 
 
     def scale_calc(self):
