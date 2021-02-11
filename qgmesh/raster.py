@@ -260,8 +260,9 @@ class raster_calculator(QtWidgets.QDialog):
         #gdal_proximity_cmd = 'gdal_proximity.py -q %s %s -of GTiff -distunits GEO ' % (rasterisedShapesFilename,outputRasterFilename)
         gdal_proximity_cmd='gdal_rasterize -b 1 -burn %i -l mask %s %s' % (valin,rasterisedShapesFilename,outputRasterFilename)
 
-        os.system(gdal_proximity_cmd)
-        add_raster(outputRasterFilename,'mask')
+        # os.system(gdal_proximity_cmd)
+        # add_raster(outputRasterFilename,'mask')
+        add_raster(rasterisedShapesFilename,'mask')
 
         if os.path.isfile(rasterisedShapesFilename):
             os.system('rm -f %s' % rasterisedShapesFilename)
