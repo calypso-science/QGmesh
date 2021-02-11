@@ -290,7 +290,7 @@ class raster_calculator(QtWidgets.QDialog):
         % (valin,valout,delta_xi,delta_eta,xiMin,etaMin,xiMax,etaMax,shapesSHPFilename,outputRasterFilename)
 
 
-        os.system(gdal_proximity_cmd)
+        os.system(gdal_rasterize_cmd)
         add_raster(outputRasterFilename,'mask')
 
 
