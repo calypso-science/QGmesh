@@ -246,26 +246,53 @@ class raster_calculator(QtWidgets.QDialog):
         valin=float(self.valin.text())
         valout=float(self.valout.text())
 
-        rasterisedShapesFilename=os.path.join( self.tempdir,'raster_mask.nc')
+
         outputRasterFilename=os.path.join( root,'mask'+str(uuid.uuid4())+'.tif')
 
-        if os.path.isfile(rasterisedShapesFilename):
-            os.system('rm -f %s' % rasterisedShapesFilename)
 
         if os.path.isfile(outputRasterFilename):
             os.system('rm -f %s' % outputRasterFilename)
 
-        write_raster(shapesSHPFilename,rasterisedShapesFilename,extent,res)
 
-        #gdal_proximity_cmd = 'gdal_proximity.py -q %s %s -of GTiff -distunits GEO ' % (rasterisedShapesFilename,outputRasterFilename)
-        gdal_proximity_cmd='gdal_rasterize -b 1 -burn %i -l mask %s %s' % (valin,rasterisedShapesFilename,outputRasterFilename)
 
-        # os.system(gdal_proximity_cmd)
-        # add_raster(outputRasterFilename,'mask')
-        add_raster(rasterisedShapesFilename,'mask')
+        #raster bound
+        xiMin = extent[0]
+        xiMax = extent[1]
+        etaMin = extent[2]
+        etaMax = extent[3]
 
-        if os.path.isfile(rasterisedShapesFilename):
-            os.system('rm -f %s' % rasterisedShapesFilename)
+        # raster resolution
+        numb_xiPoints = res[0]
+        numb_etaPoints = res[1]
+
+        # Calculate output resolution
+        delta_xi = abs(xiMax - xiMin)/(numb_xiPoints-1)
+        delta_eta = abs(etaMax - etaMin)/(numb_etaPoints-1)
+        # The distance function calculation is here carried out using gdal_proximity.
+        # In order for that utility to give accurate distances the pixels must be
+        # square: delta_xi == delta_eta. Below we check for that condition, 
+        # and if not the case we change the resolution and/or enlarge the raster
+        # extents, to make the pixels square.
+        if delta_xi != delta_eta:
+            if delta_xi < delta_eta:
+                delta_eta = delta_xi
+                numb_etaPoints = (abs(etaMax - etaMin)/delta_eta) + 1
+                numb_etaPoints = int(np.ceil(numb_etaPoints))
+                etaMax = delta_eta*(numb_etaPoints - 1) + etaMin
+            elif delta_eta < delta_xi:
+                delta_xi = delta_eta
+                numb_xiPoints = (abs(xiMax - xiMin)/delta_xi) + 1
+                numb_xiPoints = int(np.ceil(numb_xiPoints))
+                xiMax = delta_xi*(numb_xiPoints - 1) + xiMin
+
+
+        gdal_rasterize_cmd = 'gdal_rasterize -q -burn %f -a_nodata 0 -init %f -at -tr %f %f -te %f %f %f %f %s %s' \
+        % (valin,valout,delta_xi,delta_eta,xiMin,etaMin,xiMax,etaMax,shapesSHPFilename,outputRasterFilename)
+
+
+        os.system(gdal_proximity_cmd)
+        add_raster(outputRasterFilename,'mask')
+
 
         self.close()
         return
