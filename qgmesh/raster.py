@@ -318,8 +318,8 @@ class raster_calculator(QtWidgets.QDialog):
 
         os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="((((%f-%f)*(A-%f))/(%f-%f))+%f)" --NoDataValue=-99' % (shapein,os.path.join( self.tempdir,'tmp1.tif'),Vmax,Vmin,min_raster,max_raster,min_raster,Vmin))
         os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="maximum(A,%f)" --NoDataValue=-99' % (os.path.join( self.tempdir,'tmp1.tif'),os.path.join( self.tempdir,'tmp2.tif'),Vmin))
-        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="minimum(A,%f)" --NoDataValue=-99' % (os.path.join( self.tempdir,'tmp2.tif'),shapeout,Vmax))
-
+        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="minimum(A,%f)" --NoDataValue=-99' % (os.path.join( self.tempdir,'tmp2.tif'),os.path.join( self.tempdir,'tmp3.tif'),Vmax))
+        os.system('gdal_calc.py -A %s --overwrite --outfile=%s --calc="(A>=%f)*1000000" --NoDataValue=-99' % (os.path.join( self.tempdir,'tmp3.tif'),shapeout,Vmax))
         add_raster(shapeout,'scaled')
         self.close()
         return
