@@ -1,5 +1,6 @@
 import numpy as np
 from collections import OrderedDict
+from pyproj import Proj, transform
 
 def extension():
 	return 'GR3 (*.gr3);'
@@ -93,7 +94,7 @@ def import_file(mesh, fname):
 
 
 
-def export_file(mesh,fname):
+def export_file(mesh,fname,inputEPSG,outputEPSG):
 
     """
     Takes appropriate triangle, node, boundary type and coordinate data and
@@ -101,6 +102,8 @@ def export_file(mesh,fname):
     but the elements, nodes and node strings are parsed from the input data.
 
    """
+    inProj = Proj(init='epsg:'+str(inputEPSG))
+    outProj = Proj(init='epsg:'+str(outputEPSG))
 
     
     triangles=mesh.faces+1
@@ -114,12 +117,18 @@ def export_file(mesh,fname):
     fileWrite.write('hgrid create with QGmesh\n')
     fileWrite.write('%i\t%i\n' % (len(mesh.faces),len(mesh.x)))
 
+    if inputEPSG==outputEPSG:
+        lon=mesh.x
+        lat=mesh.y
+    else:
+        lon,lat=transform(inProj,outProj,mesh.x,mesh.y)
+
     # Write out the connectivity table (triangles)
     for node in range(0,len(mesh.x)):
-        fileWrite.write('%i\t%f\t%f\t%f\t\n'% (node+1,mesh.x[node],mesh.y[node],mesh.z[node]))
+        fileWrite.write('%i\t%f\t%f\t%f\t\n'% (node+1,lon[node],lat[node],mesh.z[node]))
 
     for face in range(0,len(mesh.faces)):
-        if mesh.faces[face,-1]<0:
+        if mesh.faces[face,-1]<0 or triangles[face,3]==0:
             fileWrite.write('%i\t3\t%i\t%i\t%i\t0\n' % (face+1 ,triangles[face,0],triangles[face,1],triangles[face,2]))
         else:
             fileWrite.write('%i\t4\t%i\t%i\t%i\t%i\n' % (face+1 ,triangles[face,0],triangles[face,1],triangles[face,2],triangles[face,3]))

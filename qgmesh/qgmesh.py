@@ -670,10 +670,20 @@ class qgmesh:
 
 
         proj = QgsProject.instance()
+        epsgout=int(proj.crs().authid().replace('EPSG:',''))
+
         Mesh=[]
         for child in proj.layerTreeRoot().children():
             if isinstance(child, QgsLayerTreeGroup) and child.name()[:4]=='Mesh':
                 Mesh.append(child.name())
+                meshId=child.children()[0].layerId()
+
+
+        layer = proj.mapLayer(meshId)
+        epsgin=int(layer.dataProvider().crs().authid().replace('EPSG:',''))
+        if epsgout!=epsgin:
+            self.iface.messageBar().pushMessage("Info", "Mesh will change from EPSG:%i to EPSG%i" % (epsgin,epsgout), level=Qgis.Info)
+
 
         msh=mesh_selector(Mesh)
         #msh_name=msh.exec_()
@@ -683,7 +693,7 @@ class qgmesh:
         for model in export_function:
             ext=export_function[model]['extension']()
             if file_extension in ext :
-                export_function[model]['export'](self.mesh,fname)  
+                export_function[model]['export'](self.mesh,fname,epsgin,epsgout)  
 
         self.iface.messageBar().pushMessage("Info", "%s exported " % fname, level=Qgis.Info)
 
